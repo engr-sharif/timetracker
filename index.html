@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jacobs TimeTracker | Engineering Hours</title>
+  <link href="styles.css" rel="stylesheet">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Outfit', sans-serif; overflow: hidden; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+    
+    .glass {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .glow-cyan { box-shadow: 0 0 40px rgba(34, 211, 238, 0.15); }
+    .glow-emerald { box-shadow: 0 0 40px rgba(52, 211, 153, 0.15); }
+    .glow-amber { box-shadow: 0 0 40px rgba(251, 191, 36, 0.15); }
+    .glow-violet { box-shadow: 0 0 40px rgba(167, 139, 250, 0.15); }
+    
+    .animated-bg {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+      background-size: 400% 400%;
+      animation: gradientShift 15s ease infinite;
+    }
+    
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.4;
+      animation: float 20s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -30px) scale(1.1); }
+      66% { transform: translate(-20px, 20px) scale(0.9); }
+    }
+    
+    .panel-enter { animation: panelIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    
+    @keyframes panelIn {
+      from { opacity: 0; transform: scale(0.9) translateY(20px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    
+    input, select, textarea { font-family: 'Outfit', sans-serif; }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: rgba(34, 211, 238, 0.5);
+      box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+    }
+    
+    .btn-glow:hover { box-shadow: 0 0 20px currentColor; }
+    .drag-handle { cursor: grab; }
+    .drag-handle:active { cursor: grabbing; }
+    
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+    
+    .sync-indicator { transition: all 0.3s ease; }
+    .sync-indicator.syncing { animation: pulse 1s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body class="animated-bg min-h-screen text-white">
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } = React;
+    
+    // ============================================
+    // GITHUB GIST STORAGE
+    // ============================================
+    const GIST_FILENAME = 'jacobs-timetracker-data.json';
+    
+    const GistStorage = {
+      async loadData(token, gistId) {
+        try {
+          const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+            headers: { 'Authorization': `token ${token}` }
+          });
+          if (!res.ok) throw new Error('Failed to load gist');
+          const gist = await res.json();
+          const content = gist.files[GIST_FILENAME]?.content;
+          return content ? JSON.parse(content) : null;
+        } catch (e) {
+          console.error('Load error:', e);
+          return null;
+        }
+      },
+      
+      async saveData(token, gistId, data) {
+        try {
+          const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `token ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              files: { [GIST_FILENAME]: { content: JSON.stringify(data, null, 2) } }
+            })
+          });
+          return res.ok;
+        } catch (e) {
+          console.error('Save error:', e);
+          return false;
+        }
+      },
+      
+      async createGist(token) {
+        try {
+          const res = await fetch('https://api.github.com/gists', {
+            method: 'POST',
+            headers: {
+              'Authorization': `token ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              description: 'Jacobs TimeTracker Data (Auto-generated)',
+              public: false,
+              files: { [GIST_FILENAME]: { content: JSON.stringify({ projects: [], timeEntries: [], notes: [] }, null, 2) } }
+            })
+          });
+          if (!res.ok) throw new Error('Failed to create gist');
+          const gist = await res.json();
+          return gist.id;
+        } catch (e) {
+          console.error('Create gist error:', e);
+          return null;
+        }
+      },
+      
+      async validateToken(token) {
+        try {
+          const res = await fetch('https://api.github.com/user', {
+            headers: { 'Authorization': `token ${token}` }
+          });
+          if (!res.ok) return null;
+          return await res.json();
+        } catch (e) {
+          return null;
+        }
+      }
+    };
+    
+    // ============================================
+    // DATA CONTEXT & PERSISTENCE
+    // ============================================
+    const DataContext = createContext();
+    
+    const defaultProjects = [
+      { id: '1', name: 'Highway 101 Expansion', number: 'P-2024-0847', costCodes: ['001-Design', '002-Review', '003-Meetings'], color: 'cyan' },
+      { id: '2', name: 'Bay Area Transit Hub', number: 'P-2024-1203', costCodes: ['001-Planning', '002-Analysis', '003-Documentation'], color: 'emerald' },
+    ];
+    
+    const getWeekDates = () => {
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+      monday.setHours(0, 0, 0, 0);
+      return Array.from({ length: 7 }, (_, i) => {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        return date.toISOString().split('T')[0];
+      });
+    };
+    
+    const DataProvider = ({ children, authInfo }) => {
+      const [projects, setProjects] = useState(defaultProjects);
+      const [timeEntries, setTimeEntries] = useState([]);
+      const [notes, setNotes] = useState([]);
+      const [syncStatus, setSyncStatus] = useState('idle');
+      const [lastSync, setLastSync] = useState(null);
+      const saveTimeout = useRef(null);
+      const isInitialized = useRef(false);
+      
+      useEffect(() => {
+        const loadFromGist = async () => {
+          if (!authInfo?.token || !authInfo?.gistId) return;
+          setSyncStatus('syncing');
+          const data = await GistStorage.loadData(authInfo.token, authInfo.gistId);
+          if (data) {
+            if (data.projects?.length) setProjects(data.projects);
+            if (data.timeEntries) setTimeEntries(data.timeEntries);
+            if (data.notes) setNotes(data.notes);
+          }
+          setSyncStatus('synced');
+          setLastSync(new Date());
+          isInitialized.current = true;
+        };
+        loadFromGist();
+      }, [authInfo]);
+      
+      const saveToGist = useCallback(async (data) => {
+        if (!authInfo?.token || !authInfo?.gistId || !isInitialized.current) return;
+        setSyncStatus('syncing');
+        const success = await GistStorage.saveData(authInfo.token, authInfo.gistId, data);
+        setSyncStatus(success ? 'synced' : 'error');
+        if (success) setLastSync(new Date());
+      }, [authInfo]);
+      
+      useEffect(() => {
+        if (!isInitialized.current) return;
+        if (saveTimeout.current) clearTimeout(saveTimeout.current);
+        saveTimeout.current = setTimeout(() => {
+          saveToGist({ projects, timeEntries, notes });
+        }, 1000);
+        return () => clearTimeout(saveTimeout.current);
+      }, [projects, timeEntries, notes, saveToGist]);
+      
+      const weekDates = useMemo(() => getWeekDates(), []);
+      
+      const weeklyHours = useMemo(() => {
+        return timeEntries
+          .filter(e => weekDates.includes(e.date))
+          .reduce((sum, e) => sum + e.hours, 0);
+      }, [timeEntries, weekDates]);
+      
+      const addTimeEntry = useCallback((entry) => {
+        setTimeEntries(prev => [...prev, { ...entry, id: Date.now().toString() }]);
+      }, []);
+      
+      const deleteTimeEntry = useCallback((id) => {
+        setTimeEntries(prev => prev.filter(e => e.id !== id));
+      }, []);
+      
+      const addProject = useCallback((project) => {
+        setProjects(prev => [...prev, { ...project, id: Date.now().toString() }]);
+      }, []);
+      
+      const deleteProject = useCallback((id) => {
+        setProjects(prev => prev.filter(p => p.id !== id));
+      }, []);
+      
+      const addNote = useCallback((note) => {
+        setNotes(prev => [...prev, { ...note, id: Date.now().toString(), createdAt: new Date().toISOString() }]);
+      }, []);
+      
+      const deleteNote = useCallback((id) => {
+        setNotes(prev => prev.filter(n => n.id !== id));
+      }, []);
+      
+      const forceSync = useCallback(() => {
+        saveToGist({ projects, timeEntries, notes });
+      }, [projects, timeEntries, notes, saveToGist]);
+      
+      return (
+        <DataContext.Provider value={{
+          projects, setProjects, addProject, deleteProject,
+          timeEntries, addTimeEntry, deleteTimeEntry,
+          notes, addNote, deleteNote,
+          weekDates, weeklyHours,
+          syncStatus, lastSync, forceSync,
+          user: authInfo?.user
+        }}>
+          {children}
+        </DataContext.Provider>
+      );
+    };
+    
+    const useData = () => useContext(DataContext);
+    
+    // ============================================
+    // SYNC STATUS INDICATOR
+    // ============================================
+    const SyncIndicator = () => {
+      const { syncStatus, lastSync, forceSync } = useData();
+      
+      const statusConfig = {
+        idle: { color: 'text-white/30', icon: '○', label: 'Not synced' },
+        syncing: { color: 'text-cyan-400', icon: '↻', label: 'Syncing...' },
+        synced: { color: 'text-emerald-400', icon: '✓', label: 'Synced' },
+        error: { color: 'text-red-400', icon: '✗', label: 'Sync error' }
+      };
+      
+      const config = statusConfig[syncStatus];
+      
+      return (
+        <button
+          onClick={forceSync}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors ${config.color}`}
+          title={lastSync ? `Last synced: ${lastSync.toLocaleTimeString()}` : 'Click to sync'}
+        >
+          <span className={`sync-indicator ${syncStatus === 'syncing' ? 'syncing' : ''}`}>{config.icon}</span>
+          <span className="text-xs">{config.label}</span>
+        </button>
+      );
+    };
+    
+    // ============================================
+    // PHYSICS-BASED DRAGGABLE PANEL
+    // ============================================
+    const FloatingPanel = ({ children, title, icon, defaultPosition = { x: 100, y: 100 }, glowColor = 'cyan', onClose, width = 400, minHeight = 200, zIndex = 10 }) => {
+      const [position, setPosition] = useState(defaultPosition);
+      const [velocity, setVelocity] = useState({ x: 0, y: 0 });
+      const [isDragging, setIsDragging] = useState(false);
+      const [isVisible, setIsVisible] = useState(true);
+      const panelRef = useRef(null);
+      const dragStart = useRef({ x: 0, y: 0 });
+      const lastPos = useRef({ x: 0, y: 0 });
+      const animFrame = useRef(null);
+      
+      const friction = 0.92;
+      const bounce = 0.6;
+      
+      useEffect(() => {
+        if (!isDragging && (Math.abs(velocity.x) > 0.1 || Math.abs(velocity.y) > 0.1)) {
+          animFrame.current = requestAnimationFrame(() => {
+            const newVel = { x: velocity.x * friction, y: velocity.y * friction };
+            let newPos = { x: position.x + newVel.x, y: position.y + newVel.y };
+            const maxX = window.innerWidth - width - 20;
+            const maxY = window.innerHeight - 100;
+            if (newPos.x < 20) { newPos.x = 20; newVel.x = -newVel.x * bounce; }
+            if (newPos.x > maxX) { newPos.x = maxX; newVel.x = -newVel.x * bounce; }
+            if (newPos.y < 20) { newPos.y = 20; newVel.y = -newVel.y * bounce; }
+            if (newPos.y > maxY) { newPos.y = maxY; newVel.y = -newVel.y * bounce; }
+            setPosition(newPos);
+            setVelocity(newVel);
+          });
+        }
+        return () => cancelAnimationFrame(animFrame.current);
+      }, [isDragging, velocity, position, width]);
+      
+      const handleMouseDown = (e) => {
+        if (e.target.closest('input, button, select, textarea')) return;
+        setIsDragging(true);
+        dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+        lastPos.current = { x: e.clientX, y: e.clientY };
+      };
+      
+      useEffect(() => {
+        const handleMouseMove = (e) => {
+          if (!isDragging) return;
+          const newPos = { x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y };
+          const newVel = { x: e.clientX - lastPos.current.x, y: e.clientY - lastPos.current.y };
+          lastPos.current = { x: e.clientX, y: e.clientY };
+          setPosition(newPos);
+          setVelocity(newVel);
+        };
+        const handleMouseUp = () => setIsDragging(false);
+        if (isDragging) {
+          window.addEventListener('mousemove', handleMouseMove);
+          window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+          window.removeEventListener('mousemove', handleMouseMove);
+          window.removeEventListener('mouseup', handleMouseUp);
+        };
+      }, [isDragging]);
+      
+      if (!isVisible) return null;
+      
+      const glowClasses = {
+        cyan: 'glow-cyan border-cyan-500/30',
+        emerald: 'glow-emerald border-emerald-500/30',
+        amber: 'glow-amber border-amber-500/30',
+        violet: 'glow-violet border-violet-500/30'
+      };
+      
+      return (
+        <div ref={panelRef} className={`fixed glass rounded-2xl panel-enter ${glowClasses[glowColor]} transition-shadow duration-300`} style={{ left: position.x, top: position.y, width, minHeight, zIndex, transform: isDragging ? 'scale(1.02)' : 'scale(1)', transition: isDragging ? 'none' : 'transform 0.2s ease' }}>
+          <div className="drag-handle flex items-center justify-between px-5 py-4 border-b border-white/5" onMouseDown={handleMouseDown}>
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{icon}</span>
+              <h2 className="font-semibold text-white/90">{title}</h2>
+            </div>
+            <button onClick={() => { setIsVisible(false); onClose?.(); }} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-red-500/20 flex items-center justify-center transition-colors">
+              <svg className="w-4 h-4 text-white/50 hover:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+          <div className="p-5 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 60px)' }}>{children}</div>
+        </div>
+      );
+    };
+    
+    // ============================================
+    // QUICK TIME ENTRY
+    // ============================================
+    const QuickEntry = () => {
+      const { projects, addTimeEntry } = useData();
+      const [selectedProject, setSelectedProject] = useState('');
+      const [selectedCostCode, setSelectedCostCode] = useState('');
+      const [hours, setHours] = useState('');
+      const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+      const [description, setDescription] = useState('');
+      const [showSuccess, setShowSuccess] = useState(false);
+      
+      const currentProject = projects.find(p => p.id === selectedProject);
+      
+      const handleSubmit = () => {
+        if (!selectedProject || !selectedCostCode || !hours) return;
+        addTimeEntry({ projectId: selectedProject, projectName: currentProject.name, projectNumber: currentProject.number, costCode: selectedCostCode, hours: parseFloat(hours), date, description });
+        setHours('');
+        setDescription('');
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2000);
+      };
+      
+      const quickHours = [0.5, 1, 2, 4, 8];
+      
+      return (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Project</label>
+            <select value={selectedProject} onChange={(e) => { setSelectedProject(e.target.value); setSelectedCostCode(''); }} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white appearance-none cursor-pointer hover:bg-white/10 transition-colors">
+              <option value="">Select project...</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.number} - {p.name}</option>)}
+            </select>
+          </div>
+          
+          {currentProject && (
+            <div className="panel-enter">
+              <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Cost Code</label>
+              <div className="grid grid-cols-1 gap-2">
+                {currentProject.costCodes.map(code => (
+                  <button key={code} onClick={() => setSelectedCostCode(code)} className={`px-4 py-2.5 rounded-xl text-left transition-all ${selectedCostCode === code ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300' : 'bg-white/5 border-white/10 hover:bg-white/10'} border`}>
+                    <span className="font-mono text-sm">{code}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {selectedCostCode && (
+            <div className="panel-enter">
+              <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Hours</label>
+              <div className="flex gap-2 mb-3">
+                {quickHours.map(h => (
+                  <button key={h} onClick={() => setHours(h.toString())} className={`flex-1 py-2 rounded-xl font-mono text-sm transition-all ${hours === h.toString() ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' : 'bg-white/5 border-white/10 hover:bg-white/10'} border`}>{h}h</button>
+                ))}
+              </div>
+              <input type="number" value={hours} onChange={(e) => setHours(e.target.value)} placeholder="Or enter custom hours..." step="0.25" min="0" max="24" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 font-mono" />
+            </div>
+          )}
+          
+          {hours && (
+            <>
+              <div className="panel-enter">
+                <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Date</label>
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5" />
+              </div>
+              <div className="panel-enter">
+                <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Description (optional)</label>
+                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What did you work on?" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5" />
+              </div>
+              <button onClick={handleSubmit} disabled={!selectedProject || !selectedCostCode || !hours} className={`w-full py-4 rounded-xl font-semibold transition-all panel-enter ${showSuccess ? 'bg-emerald-500 text-white' : 'bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-white btn-glow'}`}>
+                {showSuccess ? '✓ Time Logged!' : `Log ${hours} Hours`}
+              </button>
+            </>
+          )}
+        </div>
+      );
+    };
+    
+    // ============================================
+    // WEEKLY TIMESHEET
+    // ============================================
+    const WeeklyTimesheet = () => {
+      const { timeEntries, weekDates, deleteTimeEntry, weeklyHours } = useData();
+      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const today = new Date().toISOString().split('T')[0];
+      
+      const entriesByDay = useMemo(() => {
+        const grouped = {};
+        weekDates.forEach(date => { grouped[date] = []; });
+        timeEntries.forEach(entry => { if (grouped[entry.date]) grouped[entry.date].push(entry); });
+        return grouped;
+      }, [timeEntries, weekDates]);
+      
+      const hoursByDay = useMemo(() => {
+        const hours = {};
+        weekDates.forEach(date => { hours[date] = entriesByDay[date].reduce((sum, e) => sum + e.hours, 0); });
+        return hours;
+      }, [entriesByDay, weekDates]);
+      
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 border border-cyan-500/20">
+            <span className="text-white/70">Weekly Total</span>
+            <span className="text-2xl font-bold font-mono text-cyan-300">{weeklyHours.toFixed(1)}h</span>
+          </div>
+          
+          <div className="grid grid-cols-7 gap-1">
+            {weekDates.map((date, i) => (
+              <div key={date} className="text-center">
+                <div className="text-xs text-white/40 mb-1">{dayNames[i]}</div>
+                <div className={`text-xs mb-1 ${date === today ? 'text-cyan-400' : 'text-white/60'}`}>{new Date(date).getDate()}</div>
+                <div className={`text-sm font-mono font-semibold ${hoursByDay[date] >= 8 ? 'text-emerald-400' : hoursByDay[date] > 0 ? 'text-amber-400' : 'text-white/30'}`}>{hoursByDay[date] || '-'}</div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-4">
+            <h3 className="text-xs text-white/50 uppercase tracking-wider mb-3">Recent Entries</h3>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {timeEntries.slice(-5).reverse().map(entry => (
+                <div key={entry.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 group">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{entry.projectName}</div>
+                    <div className="text-xs text-white/50 font-mono">{entry.costCode}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-emerald-400">{entry.hours}h</span>
+                    <button onClick={() => deleteTimeEntry(entry.id)} className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded bg-red-500/20 flex items-center justify-center transition-opacity">
+                      <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {timeEntries.length === 0 && <div className="text-center text-white/30 py-8">No entries yet this week</div>}
+            </div>
+          </div>
+        </div>
+      );
+    };
+    
+    // ============================================
+    // PROJECTS MANAGER
+    // ============================================
+    const ProjectsManager = () => {
+      const { projects, addProject, deleteProject } = useData();
+      const [isAdding, setIsAdding] = useState(false);
+      const [newProject, setNewProject] = useState({ name: '', number: '', costCodes: '' });
+      const colors = ['cyan', 'emerald', 'amber', 'violet'];
+      
+      const handleAdd = () => {
+        if (!newProject.name || !newProject.number) return;
+        addProject({ ...newProject, costCodes: newProject.costCodes.split(',').map(c => c.trim()).filter(Boolean), color: colors[projects.length % colors.length] });
+        setNewProject({ name: '', number: '', costCodes: '' });
+        setIsAdding(false);
+      };
+      
+      return (
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {projects.map(project => (
+              <div key={project.id} className="p-4 rounded-xl bg-white/5 group">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-mono text-sm text-cyan-400">{project.number}</div>
+                    <div className="font-medium mt-1">{project.name}</div>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {project.costCodes.map(code => <span key={code} className="text-xs px-2 py-0.5 rounded bg-white/10 text-white/60">{code}</span>)}
+                    </div>
+                  </div>
+                  <button onClick={() => deleteProject(project.id)} className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center transition-opacity">
+                    <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {isAdding ? (
+            <div className="p-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 space-y-3 panel-enter">
+              <input type="text" value={newProject.number} onChange={(e) => setNewProject({ ...newProject, number: e.target.value })} placeholder="Project Number (e.g., P-2024-1234)" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 font-mono" />
+              <input type="text" value={newProject.name} onChange={(e) => setNewProject({ ...newProject, name: e.target.value })} placeholder="Project Name" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5" />
+              <input type="text" value={newProject.costCodes} onChange={(e) => setNewProject({ ...newProject, costCodes: e.target.value })} placeholder="Cost Codes (comma separated)" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5" />
+              <div className="flex gap-2">
+                <button onClick={handleAdd} className="flex-1 py-2.5 rounded-xl bg-cyan-500 text-white font-medium hover:bg-cyan-400 transition-colors">Add Project</button>
+                <button onClick={() => setIsAdding(false)} className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setIsAdding(true)} className="w-full py-3 rounded-xl border-2 border-dashed border-white/20 text-white/50 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors">+ Add New Project</button>
+          )}
+        </div>
+      );
+    };
+    
+    // ============================================
+    // NOTES PANEL
+    // ============================================
+    const NotesPanel = () => {
+      const { notes, addNote, deleteNote, projects } = useData();
+      const [newNote, setNewNote] = useState('');
+      const [selectedProject, setSelectedProject] = useState('');
+      
+      const handleAdd = () => {
+        if (!newNote.trim()) return;
+        addNote({ content: newNote, projectId: selectedProject || null, projectName: projects.find(p => p.id === selectedProject)?.name || null });
+        setNewNote('');
+      };
+      
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <select value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm">
+              <option value="">General Note</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <div className="flex gap-2">
+              <input type="text" value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdd()} placeholder="Quick note..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5" />
+              <button onClick={handleAdd} className="px-4 rounded-xl bg-violet-500 hover:bg-violet-400 transition-colors">+</button>
+            </div>
+          </div>
+          
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {notes.slice().reverse().map(note => (
+              <div key={note.id} className="p-3 rounded-xl bg-white/5 group">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    {note.projectName && <div className="text-xs text-violet-400 mb-1">{note.projectName}</div>}
+                    <div className="text-sm">{note.content}</div>
+                    <div className="text-xs text-white/30 mt-1">{new Date(note.createdAt).toLocaleDateString()}</div>
+                  </div>
+                  <button onClick={() => deleteNote(note.id)} className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded bg-red-500/20 flex items-center justify-center transition-opacity flex-shrink-0">
+                    <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+            {notes.length === 0 && <div className="text-center text-white/30 py-8">No notes yet</div>}
+          </div>
+        </div>
+      );
+    };
+    
+    // ============================================
+    // SETUP SCREEN
+    // ============================================
+    const SetupScreen = ({ onComplete }) => {
+      const [step, setStep] = useState(1);
+      const [token, setToken] = useState('');
+      const [name, setName] = useState('');
+      const [employeeId, setEmployeeId] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState('');
+      const [user, setUser] = useState(null);
+      
+      const handleValidateToken = async () => {
+        setLoading(true);
+        setError('');
+        const userData = await GistStorage.validateToken(token);
+        if (userData) {
+          setUser(userData);
+          setName(userData.name || userData.login);
+          setStep(2);
+        } else {
+          setError('Invalid token. Make sure it has "gist" scope.');
+        }
+        setLoading(false);
+      };
+      
+      const handleComplete = async () => {
+        setLoading(true);
+        setError('');
+        let gistId = localStorage.getItem('jtt_gist_id');
+        if (!gistId) {
+          gistId = await GistStorage.createGist(token);
+          if (!gistId) {
+            setError('Failed to create storage. Please try again.');
+            setLoading(false);
+            return;
+          }
+          localStorage.setItem('jtt_gist_id', gistId);
+        }
+        const authInfo = { token, gistId, user: { name, employeeId, login: user.login, avatar: user.avatar_url } };
+        localStorage.setItem('jtt_auth', JSON.stringify(authInfo));
+        onComplete(authInfo);
+      };
+      
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="glass rounded-3xl p-8 w-full max-w-md glow-cyan panel-enter">
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center">
+                <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">TimeTracker</h1>
+              <p className="text-white/50 mt-2">Jacobs Engineering</p>
+            </div>
+            
+            {step === 1 && (
+              <div className="space-y-4 panel-enter">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-white/70 text-sm mb-3">🔐 <strong className="text-white">One-time setup:</strong> Connect to GitHub for cloud storage. Your data will be saved in a private Gist.</p>
+                  <ol className="text-xs text-white/50 space-y-1 list-decimal list-inside">
+                    <li>Go to <a href="https://github.com/settings/tokens/new?scopes=gist&description=Jacobs%20TimeTracker" target="_blank" className="text-cyan-400 hover:underline">GitHub Token Settings</a></li>
+                    <li>Click "Generate token" (gist scope is pre-selected)</li>
+                    <li>Copy and paste the token below</li>
+                  </ol>
+                </div>
+                
+                <div>
+                  <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">GitHub Personal Access Token</label>
+                  <input type="password" value={token} onChange={(e) => setToken(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleValidateToken()} placeholder="ghp_xxxxxxxxxxxx" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm" autoFocus />
+                </div>
+                
+                {error && <div className="text-red-400 text-sm p-3 rounded-xl bg-red-500/10 border border-red-500/20">{error}</div>}
+                
+                <button onClick={handleValidateToken} disabled={!token || loading} className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold hover:from-cyan-400 hover:to-emerald-400 transition-all disabled:opacity-50">
+                  {loading ? 'Validating...' : 'Connect GitHub →'}
+                </button>
+                
+                <p className="text-center text-white/30 text-xs">Your token is stored locally and only used to access GitHub's API</p>
+              </div>
+            )}
+            
+            {step === 2 && (
+              <div className="space-y-4 panel-enter">
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <img src={user.avatar_url} className="w-12 h-12 rounded-full" />
+                  <div>
+                    <div className="text-emerald-400 text-sm">✓ Connected as</div>
+                    <div className="font-semibold">{user.login}</div>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Your Name</label>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your name" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3" />
+                </div>
+                
+                <div>
+                  <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Employee ID (optional)</label>
+                  <input type="text" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} placeholder="e.g., J12345" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 font-mono" />
+                </div>
+                
+                {error && <div className="text-red-400 text-sm p-3 rounded-xl bg-red-500/10 border border-red-500/20">{error}</div>}
+                
+                <button onClick={handleComplete} disabled={!name || loading} className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold hover:from-cyan-400 hover:to-emerald-400 transition-all disabled:opacity-50">
+                  {loading ? 'Setting up...' : 'Start Tracking →'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+    
+    // ============================================
+    // MAIN DASHBOARD
+    // ============================================
+    const Dashboard = () => {
+      const { user, weeklyHours } = useData();
+      const [panels, setPanels] = useState({ quickEntry: true, timesheet: true, projects: false, notes: false });
+      
+      const togglePanel = (key) => setPanels(prev => ({ ...prev, [key]: !prev[key] }));
+      
+      const handleLogout = () => {
+        localStorage.removeItem('jtt_auth');
+        window.location.reload();
+      };
+      
+      const panelButtons = [
+        { key: 'quickEntry', icon: '⚡', label: 'Quick Entry' },
+        { key: 'timesheet', icon: '📊', label: 'Timesheet' },
+        { key: 'projects', icon: '📁', label: 'Projects' },
+        { key: 'notes', icon: '📝', label: 'Notes' },
+      ];
+      
+      return (
+        <div className="min-h-screen relative">
+          <div className="orb w-96 h-96 bg-cyan-500 -top-48 -left-48" style={{ animationDelay: '0s' }} />
+          <div className="orb w-80 h-80 bg-violet-500 top-1/2 -right-40" style={{ animationDelay: '-5s' }} />
+          <div className="orb w-64 h-64 bg-emerald-500 -bottom-32 left-1/3" style={{ animationDelay: '-10s' }} />
+          
+          <div className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5">
+            <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+                <div>
+                  <h1 className="font-semibold">TimeTracker</h1>
+                  <p className="text-xs text-white/50">Jacobs Engineering</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {panelButtons.map(btn => (
+                  <button key={btn.key} onClick={() => togglePanel(btn.key)} className={`px-4 py-2 rounded-xl text-sm transition-all flex items-center gap-2 ${panels[btn.key] ? 'bg-white/10 text-white border border-white/20' : 'bg-white/5 text-white/60 hover:bg-white/10 border border-transparent'}`}>
+                    <span>{btn.icon}</span>
+                    <span className="hidden sm:inline">{btn.label}</span>
+                  </button>
+                ))}
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <SyncIndicator />
+                <div className="text-right">
+                  <div className="text-sm font-medium">{user?.name}</div>
+                  <div className="text-xs text-white/50 font-mono">{user?.employeeId || user?.login}</div>
+                </div>
+                <div className="flex items-center gap-3 pl-4 border-l border-white/10">
+                  <div className="text-right">
+                    <div className="text-xs text-white/50">This Week</div>
+                    <div className="font-mono font-bold text-emerald-400">{weeklyHours.toFixed(1)}h</div>
+                  </div>
+                  {user?.avatar && <img src={user.avatar} className="w-8 h-8 rounded-lg" />}
+                  <button onClick={handleLogout} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-red-500/20 flex items-center justify-center transition-colors" title="Sign Out">
+                    <svg className="w-4 h-4 text-white/50 hover:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {panels.quickEntry && <FloatingPanel title="Quick Entry" icon="⚡" defaultPosition={{ x: 40, y: 100 }} glowColor="cyan" width={380} zIndex={20} onClose={() => togglePanel('quickEntry')}><QuickEntry /></FloatingPanel>}
+          {panels.timesheet && <FloatingPanel title="Weekly Timesheet" icon="📊" defaultPosition={{ x: 460, y: 100 }} glowColor="emerald" width={420} zIndex={19} onClose={() => togglePanel('timesheet')}><WeeklyTimesheet /></FloatingPanel>}
+          {panels.projects && <FloatingPanel title="My Projects" icon="📁" defaultPosition={{ x: 920, y: 100 }} glowColor="amber" width={400} zIndex={18} onClose={() => togglePanel('projects')}><ProjectsManager /></FloatingPanel>}
+          {panels.notes && <FloatingPanel title="Notes" icon="📝" defaultPosition={{ x: 200, y: 450 }} glowColor="violet" width={360} zIndex={17} onClose={() => togglePanel('notes')}><NotesPanel /></FloatingPanel>}
+          
+          {!Object.values(panels).some(Boolean) && (
+            <div className="fixed inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center text-white/30">
+                <div className="text-6xl mb-4">🪟</div>
+                <p>Click the buttons above to open panels</p>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+    
+    // ============================================
+    // APP ROOT
+    // ============================================
+    const App = () => {
+      const [authInfo, setAuthInfo] = useState(() => {
+        const saved = localStorage.getItem('jtt_auth');
+        return saved ? JSON.parse(saved) : null;
+      });
+      
+      if (!authInfo) return <SetupScreen onComplete={setAuthInfo} />;
+      
+      return (
+        <DataProvider authInfo={authInfo}>
+          <Dashboard />
+        </DataProvider>
+      );
+    };
+    
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
