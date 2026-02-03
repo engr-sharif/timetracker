@@ -170,6 +170,17 @@
     };
     
     // ============================================
+    // PASSWORD HASHING (Web Crypto API)
+    // ============================================
+    const hashPassword = async (password) => {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    };
+
+    // ============================================
     // DATA CONTEXT & PERSISTENCE
     // ============================================
     const DataContext = createContext();
@@ -644,17 +655,19 @@
     };
     
     // ============================================
-    // SETUP SCREEN
+    // SETUP SCREEN (first-time only)
     // ============================================
     const SetupScreen = ({ onComplete }) => {
       const [step, setStep] = useState(1);
       const [token, setToken] = useState('');
       const [name, setName] = useState('');
       const [employeeId, setEmployeeId] = useState('');
+      const [password, setPassword] = useState('');
+      const [confirmPassword, setConfirmPassword] = useState('');
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState('');
       const [user, setUser] = useState(null);
-      
+
       const handleValidateToken = async () => {
         setLoading(true);
         setError('');
@@ -668,8 +681,22 @@
         }
         setLoading(false);
       };
-      
+
+      const handleProfileNext = () => {
+        if (!name) return;
+        setError('');
+        setStep(3);
+      };
+
       const handleComplete = async () => {
+        if (password.length < 4) {
+          setError('Password must be at least 4 characters.');
+          return;
+        }
+        if (password !== confirmPassword) {
+          setError('Passwords do not match.');
+          return;
+        }
         setLoading(true);
         setError('');
         let gistId = localStorage.getItem('jtt_gist_id');
@@ -680,13 +707,26 @@
             setLoading(false);
             return;
           }
-          localStorage.setItem('jtt_gist_id', gistId);
         }
-        const authInfo = { token, gistId, user: { name, employeeId, login: user.login, avatar: user.avatar_url } };
-        localStorage.setItem('jtt_auth', JSON.stringify(authInfo));
-        onComplete(authInfo);
+        const passwordHash = await hashPassword(password);
+        // Store token + gist separately (persists across logouts)
+        localStorage.setItem('jtt_storage', JSON.stringify({ token, gistId }));
+        // Store user credentials (persists across logouts)
+        localStorage.setItem('jtt_credentials', JSON.stringify({
+          name, employeeId, login: user.login, avatar: user.avatar_url, passwordHash
+        }));
+        // Mark session as active
+        localStorage.setItem('jtt_session', 'active');
+        // Clean up old keys if migrating
+        localStorage.removeItem('jtt_auth');
+        localStorage.removeItem('jtt_gist_id');
+
+        onComplete({
+          token, gistId,
+          user: { name, employeeId, login: user.login, avatar: user.avatar_url }
+        });
       };
-      
+
       return (
         <div className="min-h-screen flex items-center justify-center p-4">
           <div className="glass rounded-3xl p-8 w-full max-w-md glow-cyan panel-enter">
@@ -697,56 +737,86 @@
               <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">TimeTracker</h1>
               <p className="text-white/50 mt-2">Jacobs Engineering</p>
             </div>
-            
+
+            <div className="flex justify-center gap-2 mb-6">
+              {[1, 2, 3].map(s => (
+                <div key={s} className={`h-1.5 rounded-full transition-all ${s === step ? 'w-8 bg-cyan-400' : s < step ? 'w-8 bg-emerald-500' : 'w-8 bg-white/10'}`} />
+              ))}
+            </div>
+
             {step === 1 && (
               <div className="space-y-4 panel-enter">
                 <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                  <p className="text-white/70 text-sm mb-3">🔐 <strong className="text-white">One-time setup:</strong> Connect to GitHub for cloud storage. Your data will be saved in a private Gist.</p>
+                  <p className="text-white/70 text-sm mb-3"><strong className="text-white">Step 1:</strong> Connect to GitHub for cloud storage. Your data will be saved in a private Gist.</p>
                   <ol className="text-xs text-white/50 space-y-1 list-decimal list-inside">
                     <li>Go to <a href="https://github.com/settings/tokens/new?scopes=gist&description=Jacobs%20TimeTracker" target="_blank" className="text-cyan-400 hover:underline">GitHub Token Settings</a></li>
                     <li>Click "Generate token" (gist scope is pre-selected)</li>
                     <li>Copy and paste the token below</li>
                   </ol>
                 </div>
-                
+
                 <div>
                   <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">GitHub Personal Access Token</label>
                   <input type="password" value={token} onChange={(e) => setToken(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleValidateToken()} placeholder="ghp_xxxxxxxxxxxx" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm" autoFocus />
                 </div>
-                
+
                 {error && <div className="text-red-400 text-sm p-3 rounded-xl bg-red-500/10 border border-red-500/20">{error}</div>}
-                
+
                 <button onClick={handleValidateToken} disabled={!token || loading} className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold hover:from-cyan-400 hover:to-emerald-400 transition-all disabled:opacity-50">
                   {loading ? 'Validating...' : 'Connect GitHub →'}
                 </button>
-                
+
                 <p className="text-center text-white/30 text-xs">Your token is stored locally and only used to access GitHub's API</p>
               </div>
             )}
-            
+
             {step === 2 && (
               <div className="space-y-4 panel-enter">
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                   <img src={user.avatar_url} className="w-12 h-12 rounded-full" />
                   <div>
-                    <div className="text-emerald-400 text-sm">✓ Connected as</div>
+                    <div className="text-emerald-400 text-sm">Connected as</div>
                     <div className="font-semibold">{user.login}</div>
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Your Name</label>
                   <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your name" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3" />
                 </div>
-                
+
                 <div>
                   <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Employee ID (optional)</label>
                   <input type="text" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} placeholder="e.g., J12345" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 font-mono" />
                 </div>
-                
+
                 {error && <div className="text-red-400 text-sm p-3 rounded-xl bg-red-500/10 border border-red-500/20">{error}</div>}
-                
-                <button onClick={handleComplete} disabled={!name || loading} className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold hover:from-cyan-400 hover:to-emerald-400 transition-all disabled:opacity-50">
+
+                <button onClick={handleProfileNext} disabled={!name} className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold hover:from-cyan-400 hover:to-emerald-400 transition-all disabled:opacity-50">
+                  Next →
+                </button>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-4 panel-enter">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-white/70 text-sm"><strong className="text-white">Step 3:</strong> Create a password to log in next time. You won't need your GitHub token again.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Create Password</label>
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 4 characters" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3" autoFocus />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Confirm Password</label>
+                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleComplete()} placeholder="Re-enter password" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3" />
+                </div>
+
+                {error && <div className="text-red-400 text-sm p-3 rounded-xl bg-red-500/10 border border-red-500/20">{error}</div>}
+
+                <button onClick={handleComplete} disabled={!password || !confirmPassword || loading} className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold hover:from-cyan-400 hover:to-emerald-400 transition-all disabled:opacity-50">
                   {loading ? 'Setting up...' : 'Start Tracking →'}
                 </button>
               </div>
@@ -757,6 +827,73 @@
     };
     
     // ============================================
+    // LOGIN SCREEN (returning users)
+    // ============================================
+    const LoginScreen = ({ credentials, onLogin, onReset }) => {
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      const handleLogin = async () => {
+        setLoading(true);
+        setError('');
+        const inputHash = await hashPassword(password);
+        if (inputHash === credentials.passwordHash) {
+          localStorage.setItem('jtt_session', 'active');
+          const storage = JSON.parse(localStorage.getItem('jtt_storage'));
+          onLogin({
+            token: storage.token,
+            gistId: storage.gistId,
+            user: { name: credentials.name, employeeId: credentials.employeeId, login: credentials.login, avatar: credentials.avatar }
+          });
+        } else {
+          setError('Incorrect password.');
+        }
+        setLoading(false);
+        setPassword('');
+      };
+
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="glass rounded-3xl p-8 w-full max-w-md glow-cyan panel-enter">
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center">
+                <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">TimeTracker</h1>
+              <p className="text-white/50 mt-2">Jacobs Engineering</p>
+            </div>
+
+            <div className="space-y-4 panel-enter">
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                {credentials.avatar && <img src={credentials.avatar} className="w-12 h-12 rounded-full" />}
+                <div>
+                  <div className="text-white/50 text-sm">Welcome back</div>
+                  <div className="font-semibold text-lg">{credentials.name}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Password</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} placeholder="Enter your password" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3" autoFocus />
+              </div>
+
+              {error && <div className="text-red-400 text-sm p-3 rounded-xl bg-red-500/10 border border-red-500/20">{error}</div>}
+
+              <button onClick={handleLogin} disabled={!password || loading} className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold hover:from-cyan-400 hover:to-emerald-400 transition-all disabled:opacity-50">
+                {loading ? 'Logging in...' : 'Log In'}
+              </button>
+
+              <button onClick={onReset} className="w-full text-center text-white/30 text-xs hover:text-white/50 transition-colors">
+                Reset account &amp; start over
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ============================================
     // MAIN DASHBOARD
     // ============================================
     const Dashboard = () => {
@@ -766,7 +903,7 @@
       const togglePanel = (key) => setPanels(prev => ({ ...prev, [key]: !prev[key] }));
       
       const handleLogout = () => {
-        localStorage.removeItem('jtt_auth');
+        localStorage.removeItem('jtt_session');
         window.location.reload();
       };
       
@@ -845,13 +982,59 @@
     // APP ROOT
     // ============================================
     const App = () => {
-      const [authInfo, setAuthInfo] = useState(() => {
-        const saved = localStorage.getItem('jtt_auth');
+      const [authInfo, setAuthInfo] = useState(null);
+      const [credentials, setCredentials] = useState(() => {
+        const saved = localStorage.getItem('jtt_credentials');
         return saved ? JSON.parse(saved) : null;
       });
-      
-      if (!authInfo) return <SetupScreen onComplete={setAuthInfo} />;
-      
+
+      // Auto-login if session is still active (page refresh / same session)
+      useEffect(() => {
+        const session = localStorage.getItem('jtt_session');
+        if (session === 'active' && credentials) {
+          const storage = JSON.parse(localStorage.getItem('jtt_storage'));
+          if (storage) {
+            setAuthInfo({
+              token: storage.token,
+              gistId: storage.gistId,
+              user: { name: credentials.name, employeeId: credentials.employeeId, login: credentials.login, avatar: credentials.avatar }
+            });
+          }
+        }
+        // Migrate old jtt_auth format if present
+        const oldAuth = localStorage.getItem('jtt_auth');
+        if (oldAuth && !credentials) {
+          const parsed = JSON.parse(oldAuth);
+          localStorage.setItem('jtt_storage', JSON.stringify({ token: parsed.token, gistId: parsed.gistId }));
+          // Old format has no password, so force setup reset
+          localStorage.removeItem('jtt_auth');
+        }
+      }, []);
+
+      const handleReset = () => {
+        localStorage.removeItem('jtt_storage');
+        localStorage.removeItem('jtt_credentials');
+        localStorage.removeItem('jtt_session');
+        localStorage.removeItem('jtt_auth');
+        localStorage.removeItem('jtt_gist_id');
+        setAuthInfo(null);
+        setCredentials(null);
+      };
+
+      // No account set up yet → full setup
+      if (!credentials) {
+        return <SetupScreen onComplete={(info) => {
+          setAuthInfo(info);
+          setCredentials(JSON.parse(localStorage.getItem('jtt_credentials')));
+        }} />;
+      }
+
+      // Has account but not logged in → login screen
+      if (!authInfo) {
+        return <LoginScreen credentials={credentials} onLogin={setAuthInfo} onReset={handleReset} />;
+      }
+
+      // Logged in → dashboard
       return (
         <DataProvider authInfo={authInfo}>
           <Dashboard />
