@@ -2648,7 +2648,12 @@
         timesheet: true, 
         timer: false,
         projects: false,
+        recurring: false,
+        mileage: false,
+        search: false,
         analytics: false,
+        calendar: false,
+        ideas: false,
       });
 
       const togglePanel = useCallback((key) => 
@@ -2732,6 +2737,7 @@
                   { key: 'search', icon: '🔍', label: 'Search', color: 'cyan' },
                   { key: 'analytics', icon: '📈', label: 'Analytics', color: 'blue' },
                   { key: 'calendar', icon: '📅', label: 'Calendar', color: 'violet' },
+                  { key: 'ideas', icon: '💡', label: 'Ideas', color: 'amber' },
                 ].map(btn => (
                   <button 
                     key={btn.key} 
@@ -2777,15 +2783,50 @@
           )}
           
           {panels.timesheet && (
-            <FloatingPanel 
-              title="Timesheet" 
-              icon="📊" 
-              defaultPosition={{x:480,y:120}} 
-              glowColor="emerald" 
-              width={480} 
-              zIndex={19} 
-              onClose={() => togglePanel('timesheet')}>
+            <FloatingPanel title="Timesheet" icon="📊" defaultPosition={{x:480,y:120}} glowColor="emerald" width={480} zIndex={19} onClose={() => togglePanel('timesheet')}>
               <EnhancedTimesheet />
+            </FloatingPanel>
+          )}
+
+          {panels.projects && (
+            <FloatingPanel title="Projects" icon="📁" defaultPosition={{x:920,y:120}} glowColor="amber" width={440} zIndex={18} onClose={() => togglePanel('projects')}>
+              <ProjectsPanel />
+            </FloatingPanel>
+          )}
+
+          {panels.recurring && (
+            <FloatingPanel title="Recurring Entries" icon="🔁" defaultPosition={{x:40,y:400}} glowColor="violet" width={420} zIndex={17} onClose={() => togglePanel('recurring')}>
+              <RecurringEntriesPanel />
+            </FloatingPanel>
+          )}
+
+          {panels.mileage && (
+            <FloatingPanel title="Mileage & Per Diem" icon="🚗" defaultPosition={{x:480,y:400}} glowColor="emerald" width={420} zIndex={16} onClose={() => togglePanel('mileage')}>
+              <MileageTracker />
+            </FloatingPanel>
+          )}
+
+          {panels.search && (
+            <FloatingPanel title="Search" icon="🔍" defaultPosition={{x:300,y:200}} glowColor="cyan" width={460} zIndex={22} onClose={() => togglePanel('search')}>
+              <SearchPanel />
+            </FloatingPanel>
+          )}
+
+          {panels.analytics && (
+            <FloatingPanel title="Analytics" icon="📈" defaultPosition={{x:480,y:120}} glowColor="blue" width={500} zIndex={15} onClose={() => togglePanel('analytics')}>
+              <AnalyticsPanel />
+            </FloatingPanel>
+          )}
+
+          {panels.calendar && (
+            <FloatingPanel title="Calendar" icon="📅" defaultPosition={{x:920,y:120}} glowColor="violet" width={400} zIndex={14} onClose={() => togglePanel('calendar')}>
+              <CalendarPanel />
+            </FloatingPanel>
+          )}
+
+          {panels.ideas && (
+            <FloatingPanel title="Project Ideas" icon="💡" defaultPosition={{x:920,y:400}} glowColor="amber" width={460} zIndex={13} onClose={() => togglePanel('ideas')}>
+              <IdeasPanel />
             </FloatingPanel>
           )}
 
@@ -3937,6 +3978,439 @@
               + Add Mileage Entry
             </button>
           )}
+        </div>
+      );
+    };
+
+    // ============================================
+    // PROJECTS PANEL
+    // ============================================
+    const ProjectsPanel = () => {
+      const { projects, addProject, updateProject, deleteProject, timeEntries, projectBudgets, setProjectBudgets } = useData();
+      const { pushUndo } = useUndo();
+      const toast = useToast();
+      const [isAdding, setIsAdding] = useState(false);
+      const [editingId, setEditingId] = useState(null);
+      const [form, setForm] = useState({ name: '', number: '', costCodes: '', color: 'cyan' });
+      const colors = ['cyan','emerald','amber','violet','rose','blue'];
+
+      const projectHours = useMemo(() => {
+        const h = {};
+        timeEntries.forEach(e => { h[e.projectId] = (h[e.projectId]||0) + e.hours; });
+        return h;
+      }, [timeEntries]);
+
+      const handleAdd = () => {
+        if (!form.name || !form.number) return;
+        addProject({ name: form.name, number: form.number, costCodes: form.costCodes.split(',').map(c => c.trim()).filter(Boolean), color: form.color });
+        setForm({ name: '', number: '', costCodes: '', color: 'cyan' });
+        setIsAdding(false);
+        toast('Project added');
+      };
+
+      const handleUpdate = (id) => {
+        if (!form.name || !form.number) return;
+        updateProject(id, { name: form.name, number: form.number, costCodes: form.costCodes.split(',').map(c => c.trim()).filter(Boolean), color: form.color });
+        setEditingId(null);
+        toast('Project updated');
+      };
+
+      const startEdit = (p) => {
+        setEditingId(p.id);
+        setForm({ name: p.name, number: p.number, costCodes: p.costCodes.join(', '), color: p.color });
+      };
+
+      const handleDelete = (p) => {
+        const count = timeEntries.filter(e => e.projectId === p.id).length;
+        if (count > 0 && !confirm(`Delete "${p.name}"? It has ${count} time entries.`)) return;
+        deleteProject(p.id);
+        pushUndo({ type: 'deleteProject', project: p });
+        toast(`Deleted "${p.name}"`);
+      };
+
+      const ProjectForm = ({ onSubmit, submitLabel }) => (
+        <div className="p-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 space-y-3 slide-up">
+          <input type="text" value={form.number} onChange={e => setForm({...form, number: e.target.value})}
+            placeholder="Project Number (e.g., P-2024-1234)" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 font-mono focus-ring" />
+          <input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})}
+            placeholder="Project Name" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus-ring" />
+          <input type="text" value={form.costCodes} onChange={e => setForm({...form, costCodes: e.target.value})}
+            placeholder="Cost Codes (comma separated)" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus-ring" />
+          <div className="flex gap-2">
+            {colors.map(c => (
+              <button key={c} onClick={() => setForm({...form, color: c})}
+                className={`w-8 h-8 rounded-lg bg-${c}-500 border-2 transition-all ${form.color === c ? 'border-white scale-110' : 'border-transparent opacity-50'}`} />
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onSubmit} className="flex-1 py-2.5 rounded-xl bg-cyan-500 text-white font-medium hover:bg-cyan-400 transition-colors">{submitLabel}</button>
+            <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">Cancel</button>
+          </div>
+        </div>
+      );
+
+      return (
+        <div className="space-y-4">
+          {projects.map(p => (
+            editingId === p.id ? (
+              <ProjectForm key={p.id} onSubmit={() => handleUpdate(p.id)} submitLabel="Save" />
+            ) : (
+              <div key={p.id} className="p-4 rounded-xl bg-white/5 group hover:bg-white/8 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full bg-${p.color}-500`} />
+                      <span className="font-mono text-sm text-cyan-400">{p.number}</span>
+                    </div>
+                    <div className="font-medium mt-1">{p.name}</div>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {p.costCodes.map(c => <span key={c} className="text-xs px-2 py-0.5 rounded bg-white/10 text-white/60">{c}</span>)}
+                    </div>
+                    <div className="text-xs text-white/40 mt-2 font-mono">{(projectHours[p.id]||0).toFixed(1)}h logged</div>
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => startEdit(p)} className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-xs">✏️</button>
+                    <button onClick={() => handleDelete(p)} className="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-xs">🗑️</button>
+                  </div>
+                </div>
+              </div>
+            )
+          ))}
+
+          {isAdding ? (
+            <ProjectForm onSubmit={handleAdd} submitLabel="Add Project" />
+          ) : (
+            <button onClick={() => { setIsAdding(true); setForm({ name: '', number: '', costCodes: '', color: colors[projects.length % colors.length] }); }}
+              className="w-full py-3 rounded-xl border-2 border-dashed border-white/20 text-white/50 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors">
+              + Add New Project
+            </button>
+          )}
+        </div>
+      );
+    };
+
+    // ============================================
+    // SEARCH PANEL
+    // ============================================
+    const SearchPanel = () => {
+      const { timeEntries, projects, deleteTimeEntry, updateTimeEntry } = useData();
+      const { pushUndo } = useUndo();
+      const toast = useToast();
+      const [query, setQuery] = useState('');
+      const [projectFilter, setProjectFilter] = useState('');
+      const [dateFrom, setDateFrom] = useState('');
+      const [dateTo, setDateTo] = useState('');
+
+      const results = useMemo(() => {
+        return timeEntries.filter(e => {
+          if (projectFilter && e.projectId !== projectFilter) return false;
+          if (dateFrom && e.date < dateFrom) return false;
+          if (dateTo && e.date > dateTo) return false;
+          if (query) {
+            const q = query.toLowerCase();
+            return (e.description||'').toLowerCase().includes(q) || (e.projectName||'').toLowerCase().includes(q) || (e.costCode||'').toLowerCase().includes(q);
+          }
+          return true;
+        }).sort((a,b) => b.date.localeCompare(a.date));
+      }, [timeEntries, query, projectFilter, dateFrom, dateTo]);
+
+      const totalHours = results.reduce((s,e) => s + e.hours, 0);
+
+      return (
+        <div className="space-y-4">
+          <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search entries..."
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-ring" />
+          <div className="grid grid-cols-3 gap-2">
+            <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm">
+              <option value="" style={{color:'#000'}}>All Projects</option>
+              {projects.map(p => <option key={p.id} value={p.id} style={{color:'#000'}}>{p.name}</option>)}
+            </select>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm" />
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div className="text-sm text-white/50">{results.length} entries · {totalHours.toFixed(1)}h total</div>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {results.slice(0, 50).map(e => (
+              <div key={e.id} className="p-3 rounded-xl bg-white/5 hover:bg-white/8 group transition-colors">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="text-xs text-white/40 font-mono">{e.date} · {e.projectName}</div>
+                    <div className="text-sm mt-1">{e.description || e.costCode}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm text-cyan-400">{e.hours}h</span>
+                    <button onClick={() => { const d = deleteTimeEntry(e.id); if(d) { pushUndo({type:'deleteEntry',entry:d}); toast('Deleted'); } }}
+                      className="w-6 h-6 rounded bg-red-500/20 items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hidden group-hover:flex">✕</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // ============================================
+    // ANALYTICS PANEL
+    // ============================================
+    const AnalyticsPanel = () => {
+      const { timeEntries, projects, utilizationStats, currentPeriodHours, settings } = useData();
+
+      const projectBreakdown = useMemo(() => {
+        const byProject = {};
+        timeEntries.forEach(e => {
+          if (!byProject[e.projectId]) byProject[e.projectId] = { name: e.projectName, hours: 0, color: projects.find(p => p.id === e.projectId)?.color || 'cyan' };
+          byProject[e.projectId].hours += e.hours;
+        });
+        return Object.values(byProject).sort((a,b) => b.hours - a.hours);
+      }, [timeEntries, projects]);
+
+      const last7Days = useMemo(() => {
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(); d.setDate(d.getDate() - i);
+          const dateStr = fmt(d);
+          const hours = timeEntries.filter(e => e.date === dateStr).reduce((s,e) => s + e.hours, 0);
+          days.push({ date: dateStr, day: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()], hours });
+        }
+        return days;
+      }, [timeEntries]);
+
+      const maxDayHours = Math.max(...last7Days.map(d => d.hours), 1);
+
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-center">
+              <div className="text-xs text-cyan-300">This Period</div>
+              <div className="text-xl font-bold font-mono text-cyan-400">{currentPeriodHours.toFixed(1)}h</div>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+              <div className="text-xs text-emerald-300">Utilization</div>
+              <div className="text-xl font-bold font-mono text-emerald-400">{Math.round(utilizationStats.utilizationRate)}%</div>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
+              <div className="text-xs text-amber-300">Total Entries</div>
+              <div className="text-xl font-bold font-mono text-amber-400">{timeEntries.length}</div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-white/60 mb-3">Last 7 Days</h3>
+            <div className="flex items-end gap-2 h-32">
+              {last7Days.map(d => (
+                <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
+                  <div className="text-xs font-mono text-white/40">{d.hours > 0 ? d.hours.toFixed(1) : ''}</div>
+                  <div className="w-full rounded-t-lg bg-gradient-to-t from-cyan-500/40 to-cyan-400/20 transition-all" style={{height: `${(d.hours/maxDayHours)*80}px`, minHeight: d.hours > 0 ? '4px' : '0'}} />
+                  <div className="text-xs text-white/30">{d.day}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-white/60 mb-3">By Project</h3>
+            <div className="space-y-2">
+              {projectBreakdown.slice(0, 8).map(p => {
+                const pct = projectBreakdown[0]?.hours ? (p.hours / projectBreakdown[0].hours * 100) : 0;
+                return (
+                  <div key={p.name} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/70 truncate">{p.name}</span>
+                      <span className="font-mono text-white/50">{p.hours.toFixed(1)}h</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                      <div className={`h-full rounded-full bg-${p.color}-500 transition-all`} style={{width: `${pct}%`}} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ============================================
+    // CALENDAR PANEL
+    // ============================================
+    const CalendarPanel = () => {
+      const { timeEntries } = useData();
+      const [viewMonth, setViewMonth] = useState(() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() }; });
+
+      const hoursByDate = useMemo(() => {
+        const h = {};
+        timeEntries.forEach(e => { h[e.date] = (h[e.date]||0) + e.hours; });
+        return h;
+      }, [timeEntries]);
+
+      const calendarDays = useMemo(() => {
+        const first = new Date(viewMonth.year, viewMonth.month, 1);
+        const startDay = first.getDay();
+        const daysInMonth = new Date(viewMonth.year, viewMonth.month + 1, 0).getDate();
+        const days = [];
+        for (let i = 0; i < startDay; i++) days.push(null);
+        for (let i = 1; i <= daysInMonth; i++) {
+          const dateStr = `${viewMonth.year}-${String(viewMonth.month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+          days.push({ day: i, date: dateStr, hours: hoursByDate[dateStr] || 0 });
+        }
+        return days;
+      }, [viewMonth, hoursByDate]);
+
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const maxHours = Math.max(...calendarDays.filter(Boolean).map(d => d.hours), 1);
+
+      const prevMonth = () => setViewMonth(p => p.month === 0 ? { year: p.year-1, month: 11 } : { ...p, month: p.month-1 });
+      const nextMonth = () => setViewMonth(p => p.month === 11 ? { year: p.year+1, month: 0 } : { ...p, month: p.month+1 });
+
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <button onClick={prevMonth} className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center">←</button>
+            <span className="font-medium">{monthNames[viewMonth.month]} {viewMonth.year}</span>
+            <button onClick={nextMonth} className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center">→</button>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center text-xs text-white/40 mb-2">
+            {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => <div key={d}>{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {calendarDays.map((d, i) => (
+              <div key={i} className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs transition-all ${
+                d ? (d.hours > 0 ? 'bg-cyan-500/20 border border-cyan-500/30' : 'bg-white/5 border border-transparent') : ''
+              } ${d && d.date === fmt(new Date()) ? 'ring-2 ring-cyan-400' : ''}`}>
+                {d && (
+                  <>
+                    <span className="text-white/50">{d.day}</span>
+                    {d.hours > 0 && <span className="font-mono text-cyan-400" style={{fontSize:'10px'}}>{d.hours.toFixed(1)}</span>}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // ============================================
+    // IDEAS PANEL - Project-Linked Notes & Ideas
+    // ============================================
+    const IdeasPanel = () => {
+      const { projects, notes, setNotes } = useData();
+      const toast = useToast();
+      const [selectedProjectId, setSelectedProjectId] = useState('all');
+      const [newNote, setNewNote] = useState('');
+      const [newNoteType, setNewNoteType] = useState('note');
+      const [editingId, setEditingId] = useState(null);
+      const [editText, setEditText] = useState('');
+
+      const addIdea = () => {
+        if (!newNote.trim()) return;
+        const projectId = selectedProjectId === 'all' ? null : selectedProjectId;
+        const project = projects.find(p => p.id === projectId);
+        setNotes(prev => [...prev, {
+          id: Date.now().toString(),
+          content: newNote,
+          type: newNoteType,
+          projectId,
+          projectName: project?.name || 'General',
+          createdAt: new Date().toISOString(),
+          done: false,
+        }]);
+        setNewNote('');
+        toast('Added');
+      };
+
+      const deleteIdea = (id) => {
+        setNotes(prev => prev.filter(n => n.id !== id));
+        toast('Deleted');
+      };
+
+      const toggleDone = (id) => {
+        setNotes(prev => prev.map(n => n.id === id ? { ...n, done: !n.done } : n));
+      };
+
+      const saveEdit = (id) => {
+        setNotes(prev => prev.map(n => n.id === id ? { ...n, content: editText } : n));
+        setEditingId(null);
+        toast('Updated');
+      };
+
+      const filtered = useMemo(() => {
+        return (notes || []).filter(n => selectedProjectId === 'all' || n.projectId === selectedProjectId)
+          .sort((a,b) => {
+            if (a.done !== b.done) return a.done ? 1 : -1;
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          });
+      }, [notes, selectedProjectId]);
+
+      const typeIcons = { note: '📝', idea: '💡', action: '✅', decision: '⚖️', link: '🔗' };
+
+      return (
+        <div className="space-y-4">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            <button onClick={() => setSelectedProjectId('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all ${selectedProjectId === 'all' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-white/5 text-white/50 border border-transparent hover:bg-white/10'}`}>
+              All
+            </button>
+            {projects.map(p => (
+              <button key={p.id} onClick={() => setSelectedProjectId(p.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all ${selectedProjectId === p.id ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-white/5 text-white/50 border border-transparent hover:bg-white/10'}`}>
+                {p.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex gap-1 mb-2">
+              {Object.entries(typeIcons).map(([type, icon]) => (
+                <button key={type} onClick={() => setNewNoteType(type)}
+                  className={`px-2 py-1 rounded-lg text-xs transition-all ${newNoteType === type ? 'bg-white/15 border border-white/30' : 'bg-white/5 border border-transparent hover:bg-white/10'}`}>
+                  {icon} {type}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input type="text" value={newNote} onChange={e => setNewNote(e.target.value)} placeholder={`Add ${newNoteType}...`}
+                onKeyDown={e => e.key === 'Enter' && addIdea()}
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus-ring text-sm" />
+              <button onClick={addIdea} className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 rounded-xl font-medium transition-colors text-sm">Add</button>
+            </div>
+          </div>
+
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {filtered.length === 0 && <p className="text-center text-white/30 text-sm py-8">No notes yet for this project</p>}
+            {filtered.map(n => (
+              <div key={n.id} className={`p-3 rounded-xl bg-white/5 group hover:bg-white/8 transition-all ${n.done ? 'opacity-50' : ''}`}>
+                {editingId === n.id ? (
+                  <div className="flex gap-2">
+                    <input type="text" value={editText} onChange={e => setEditText(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveEdit(n.id)}
+                      className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm focus-ring" autoFocus />
+                    <button onClick={() => saveEdit(n.id)} className="text-xs px-2 py-1 bg-cyan-500/20 rounded-lg">Save</button>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2">
+                    {n.type === 'action' && (
+                      <button onClick={() => toggleDone(n.id)} className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center text-xs transition-all ${n.done ? 'bg-emerald-500/30 border-emerald-500 text-emerald-300' : 'border-white/20 hover:border-white/40'}`}>
+                        {n.done && '✓'}
+                      </button>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{typeIcons[n.type] || '📝'}</span>
+                        <span className={`text-sm ${n.done ? 'line-through text-white/40' : ''}`}>{n.content}</span>
+                      </div>
+                      <div className="text-xs text-white/30 mt-1">{n.projectName || 'General'} · {new Date(n.createdAt).toLocaleDateString()}</div>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => { setEditingId(n.id); setEditText(n.content); }} className="w-6 h-6 rounded bg-white/10 flex items-center justify-center text-xs">✏️</button>
+                      <button onClick={() => deleteIdea(n.id)} className="w-6 h-6 rounded bg-red-500/20 flex items-center justify-center text-xs">✕</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       );
     };
