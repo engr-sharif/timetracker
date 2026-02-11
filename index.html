@@ -781,17 +781,23 @@
           </div>
 
           <div className="space-y-3 pt-2">
-            <select value={timerState.projectId} onChange={e => setTimerState(p => ({...p, projectId: e.target.value, costCode: ''}))}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm">
-              <option value="">Select project...</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.number} - {p.name}</option>)}
-            </select>
+            <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto">
+              {projects.map(p => (
+                <button key={p.id} onClick={() => setTimerState(prev => ({...prev, projectId: p.id, costCode: ''}))}
+                  className={`px-3 py-2 rounded-xl text-left transition-all border text-sm ${timerState.projectId === p.id ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                  <span className="font-mono text-xs text-white/50">{p.number}</span> {p.name}
+                </button>
+              ))}
+            </div>
             {currentProject && (
-              <select value={timerState.costCode} onChange={e => setTimerState(p => ({...p, costCode: e.target.value}))}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm">
-                <option value="">Select cost code...</option>
-                {currentProject.costCodes.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <div className="grid grid-cols-1 gap-1.5">
+                {currentProject.costCodes.map(c => (
+                  <button key={c} onClick={() => setTimerState(prev => ({...prev, costCode: c}))}
+                    className={`px-3 py-2 rounded-xl text-left transition-all border text-sm ${timerState.costCode === c ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                    <span className="font-mono">{c}</span>
+                  </button>
+                ))}
+              </div>
             )}
             <input type="text" value={timerState.description} onChange={e => setTimerState(p => ({...p, description: e.target.value}))}
               placeholder="What are you working on?" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm" />
@@ -832,11 +838,16 @@
         <div className="space-y-4">
           <div>
             <label className="block text-xs text-white/50 mb-2 uppercase tracking-wider">Project</label>
-            <select value={projectId} onChange={e => { setProjectId(e.target.value); setCostCode(''); }}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white">
-              <option value="">Select project...</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.number} - {p.name}</option>)}
-            </select>
+            <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+              {projects.length === 0 && <p className="text-xs text-white/30 py-2">No projects yet — add one in the Projects panel</p>}
+              {projects.map(p => (
+                <button key={p.id} onClick={() => { setProjectId(p.id); setCostCode(''); }}
+                  className={`px-4 py-2.5 rounded-xl text-left transition-all border ${projectId === p.id ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                  <span className="font-mono text-xs text-white/50">{p.number}</span>
+                  <span className="block text-sm">{p.name}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {project && (
@@ -925,17 +936,23 @@
               <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center">✕</button>
             </div>
             <div className="space-y-3">
-              <select value={projectId} onChange={e => { setProjectId(e.target.value); setCostCode(''); }}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm">
-                <option value="">Select project...</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.number} - {p.name}</option>)}
-              </select>
+              <div className="grid grid-cols-1 gap-1.5 max-h-32 overflow-y-auto">
+                {projects.map(p => (
+                  <button key={p.id} onClick={() => { setProjectId(p.id); setCostCode(''); }}
+                    className={`px-3 py-2 rounded-xl text-left transition-all border text-sm ${projectId === p.id ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                    <span className="font-mono text-xs text-white/50">{p.number}</span> {p.name}
+                  </button>
+                ))}
+              </div>
               {project && (
-                <select value={costCode} onChange={e => setCostCode(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm">
-                  <option value="">Select cost code...</option>
-                  {project.costCodes.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {project.costCodes.map(c => (
+                    <button key={c} onClick={() => setCostCode(c)}
+                      className={`px-3 py-2 rounded-xl text-left transition-all border text-sm ${costCode === c ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                      <span className="font-mono">{c}</span>
+                    </button>
+                  ))}
+                </div>
               )}
               <input type="number" value={hours} onChange={e => setHours(e.target.value)} step="0.25" min="0" max="24"
                 placeholder="Hours" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 font-mono text-sm" />
@@ -1176,8 +1193,8 @@
           <div className="space-y-2">
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm">
-              <option value="">General Note</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              <option style={{color:"#000"}} value="">General Note</option>
+              {projects.map(p => <option style={{color:"#000"}} key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             <div className="flex gap-2">
               <input type="text" value={newNote} onChange={e => setNewNote(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAdd()}
@@ -1459,13 +1476,13 @@
             <div className="space-y-3 p-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 slide-up">
               <input type="text" value={tpl.name} onChange={e => setTpl({...tpl, name: e.target.value})} placeholder="Template name" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm" />
               <select value={tpl.projectId} onChange={e => setTpl({...tpl, projectId: e.target.value, costCode: ''})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm">
-                <option value="">Select project...</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.number} - {p.name}</option>)}
+                <option style={{color:"#000"}} value="">Select project...</option>
+                {projects.map(p => <option style={{color:"#000"}} key={p.id} value={p.id}>{p.number} - {p.name}</option>)}
               </select>
               {project && (
                 <select value={tpl.costCode} onChange={e => setTpl({...tpl, costCode: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm">
-                  <option value="">Select cost code...</option>
-                  {project.costCodes.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option style={{color:"#000"}} value="">Select cost code...</option>
+                  {project.costCodes.map(c => <option style={{color:"#000"}} key={c} value={c}>{c}</option>)}
                 </select>
               )}
               <input type="number" value={tpl.hours} onChange={e => setTpl({...tpl, hours: e.target.value})} placeholder="Hours" step="0.25"
@@ -1533,12 +1550,12 @@
 
           <div className="grid grid-cols-2 gap-2">
             <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm">
-              <option value="">All Projects</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              <option style={{color:"#000"}} value="">All Projects</option>
+              {projects.map(p => <option style={{color:"#000"}} key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm">
-              <option value="">All Tags</option>
-              {allTags.map(t => <option key={t} value={t}>{t}</option>)}
+              <option style={{color:"#000"}} value="">All Tags</option>
+              {allTags.map(t => <option style={{color:"#000"}} key={t} value={t}>{t}</option>)}
             </select>
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm" />
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm" />
