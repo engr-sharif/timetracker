@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { useAuth } from '@/store/auth'
 import { resolveTheme, usePrefs } from '@/store/prefs'
 import { startSyncEngine } from '@/store/sync'
+import { startCloudEngine } from '@/store/cloud'
 import { requestPersistence } from '@/lib/files'
 import { ConfirmHost } from '@/components/ui/dialog'
 import { LoginScreen } from '@/features/auth/LoginScreen'
@@ -18,7 +19,12 @@ export function App() {
   useEffect(() => {
     if (status !== 'unlocked') return
     void requestPersistence()
-    return startSyncEngine()
+    const stopGist = startSyncEngine()
+    const stopCloud = startCloudEngine()
+    return () => {
+      stopGist()
+      stopCloud()
+    }
   }, [status])
 
   return (

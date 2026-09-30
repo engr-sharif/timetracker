@@ -39,8 +39,21 @@ export function mergeDocs(aIn: WorkspaceDoc, bIn: WorkspaceDoc): WorkspaceDoc {
     tables,
     tombstones: pruneTombstones(tombstones),
     settings,
-    submittedWeeks: { ...b.submittedWeeks, ...a.submittedWeeks },
+    submittedWeeks: mergeWeeks(a.submittedWeeks, b.submittedWeeks, tombstones),
   }
+}
+
+/** Union of submitted weeks, minus any reopened after they were submitted. */
+function mergeWeeks(a: Record<string, string>, b: Record<string, string>, tombstones: Record<string, string>) {
+  const out: Record<string, string> = {}
+  for (const [k, ts] of [...Object.entries(a), ...Object.entries(b)]) {
+    if (!out[k] || out[k] < ts) out[k] = ts
+  }
+  for (const k of Object.keys(out)) {
+    const reopened = tombstones[`week:${k}`]
+    if (reopened && reopened >= out[k]) delete out[k]
+  }
+  return out
 }
 
 /** Drop tombstones older than 90 days to keep the doc small. */

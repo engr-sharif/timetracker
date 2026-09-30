@@ -27,6 +27,7 @@ import { cn, formatBytes } from '@/lib/utils'
 import { timeAgo } from '@/lib/dates'
 import { blobUrl, deleteBlob, fileKind, getBlob, putBlob, storageEstimate, type FileKind } from '@/lib/files'
 import { useList, useTable, ws } from '@/store/workspace'
+import { deleteCloudBlob, useCloud } from '@/store/cloud'
 import type { FileMeta, Hue } from '@/store/types'
 import { Page, PageHeader } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
@@ -72,6 +73,7 @@ export default function FilesPage() {
   const [q, setQ] = useState('')
   const [dragging, setDragging] = useState(false)
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null)
+  const cloudOn = useCloud((s) => !!s.user)
   const inputRef = useRef<HTMLInputElement>(null)
   const preview = params.get('focus')
 
@@ -157,7 +159,7 @@ export default function FilesPage() {
                 <div className="h-1 overflow-hidden rounded-full bg-surface-3">
                   <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(1, (usage.usage / usage.quota) * 100)}%` }} />
                 </div>
-                <p className="mt-2 text-[10.5px] leading-snug text-subtle">Files stay on this device (IndexedDB). File names and folders sync.</p>
+                <p className="mt-2 text-[10.5px] leading-snug text-subtle">{cloudOn ? 'Files sync through Workbench Cloud and download on demand on your other devices.' : 'Files stay on this device. Connect Workbench Cloud in Settings to sync them.'}</p>
               </div>
             )}
           </aside>
@@ -313,6 +315,7 @@ function FileMenu({ f, glass }: { f: FileMeta; glass?: boolean }) {
         onSelect={async () => {
           ws().remove('files', f.id)
           await deleteBlob(f.id)
+          void deleteCloudBlob(f.id)
           toast('File deleted')
         }}
       >

@@ -4,8 +4,34 @@ import { createStore, del, get, set } from 'idb-keyval'
 const blobs = createStore('workbench-blobs', 'blobs')
 
 export const putBlob = (id: string, blob: Blob) => set(id, blob, blobs)
-export const getBlob = (id: string) => get<Blob>(id, blobs)
 export const deleteBlob = (id: string) => del(id, blobs)
+export const getLocalBlob = (id: string) => get<Blob>(id, blobs)
+
+/** Optional remote source (cloud storage) consulted when a blob isn't on this device. */
+let remoteSource: ((id: string) => Promise<Blob | null>) | null = null
+export function setRemoteBlobSource(fn: typeof remoteSource) {
+  remoteSource = fn
+}
+
+const inflight = new Map<string, Promise<Blob | undefined>>()
+
+/** Local blob, or fetched from the cloud (and cached locally) when missing. */
+export async function getBlob(id: string): Promise<Blob | undefined> {
+  const local = await get<Blob>(id, blobs)
+  if (local || !remoteSource) return local
+  let p = inflight.get(id)
+  if (!p) {
+    p = remoteSource(id)
+      .then(async (b) => {
+        if (b) await putBlob(id, b)
+        return b ?? undefined
+      })
+      .catch(() => undefined)
+      .finally(() => inflight.delete(id))
+    inflight.set(id, p)
+  }
+  return p
+}
 
 const urlCache = new Map<string, string>()
 
