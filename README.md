@@ -1,6 +1,6 @@
 # Workbench
 
-One place for consulting work: **projects, weekly timesheets, tasks, a calendar, notes, ideas, whiteboards, project channels, files and small engineering tools**. It's local-first and fast, and it can sync through a private GitHub gist.
+One place for consulting work: **projects with task codes, weekly timesheets, tasks, a calendar, notes, ideas, smart whiteboards, a PDF studio, project channels, files and small engineering tools**. It's local-first and fast. It syncs live across devices through your own Supabase project (or a private GitHub gist), and it has optional AI built in that uses your own Claude API key.
 
 > Formerly *TimeTracker*. Your existing login and data carry over automatically (see [Upgrading from TimeTracker](#upgrading-from-timetracker)).
 
@@ -14,29 +14,34 @@ One place for consulting work: **projects, weekly timesheets, tasks, a calendar,
 | **Tasks** | Kanban board (drag between columns) or grouped list. Assign to yourself or teammates, and track what you delegated. Priorities, due dates, subtasks, and time logged per task. |
 | **Calendar** | Month and week views showing events, task due dates and hours logged. Drag items to reschedule; double-click a day or time slot to add an event. |
 | **Messages** | Slack-style channels per project with threads, reactions, pins, @mentions, markdown, file attachments, and *turn message into task*. |
-| **Projects** | Project number, client, cost codes and budget. Each project page shows budget burn, hours by cost code, tasks, time history, and linked notes, boards, channels and files. |
+| **Projects** | Project number → task codes with names, budgets and billable flags. Paste a task list straight from a timesheet export, or import many projects at once. Each project page shows budget burn, hours per task against its budget, tasks, time history, and linked notes, boards, channels and files. |
 | **Notes** | Rich-text editor: type `/` for headings, checklists, quotes and code; select text for formatting. |
 | **Ideas** | Throw thoughts down, #tag them, move them through *spark → exploring → building → parked*, and turn them into tasks or notes. |
-| **Whiteboards** | Infinite canvas powered by [Excalidraw](https://github.com/excalidraw/excalidraw): sketch, diagram and build flowcharts, starting from templates. Export to PNG or SVG. |
+| **Whiteboards** | Infinite canvas powered by [Excalidraw](https://github.com/excalidraw/excalidraw). **Smart ink** turns rough pen strokes into clean rectangles, ellipses, diamonds and arrows (pause before lifting, or turn on auto). Arrows attach to the shapes they touch. Other features: Mermaid → diagram, insert PDF pages and images to sketch over, templates, and PNG/SVG export. With AI you can also describe a process to get a flowchart, clean up a sketch into a diagram, turn handwriting into text, and turn a board into tasks or a note. |
+| **PDF Studio** | Open drawings, specs and reports and work on them in place. **Markup:** pressure-sensitive pen, highlighter plus text highlight/underline/strike, rectangles, ellipses, polygons, revision clouds, arrows, text, callouts, review stamps, signatures and redaction. **Measure:** set the scale from a standard preset or a known dimension, then use length, polylength, area and count, with a takeoff panel and CSV export. **Organize:** reorder, rotate, duplicate, delete, insert and extract pages, and combine PDFs. **Compare:** overlay, swipe or side-by-side revisions, auto-align them, and auto-cloud the changes. **OCR** runs on-device and makes scans searchable. **Export** flattens markups, truly removes redacted content, and embeds the OCR text. Markups have status, comments, a CSV review log, and can become tasks. **Ask:** answers with page citations (AI). |
 | **Files** | Drag-and-drop storage with folders, stars, project links, and previews for images, PDFs, video and text. |
 | **Tools** | Snippet clipboard, engineering unit converter (flow, stress, force, moment, line load, …), a calc pad that evaluates as you type, and a focus timer. |
 
-Everywhere: a command palette on `⌘K` / `Ctrl K`, keyboard shortcuts (`C` task, `L` log time, `E` event, `I` idea, `G` + letter to navigate), dark/light/system themes with a circular reveal, seven accent colours, spring-physics animations (reduced-motion aware), a mobile layout with a tab bar, and offline support.
+Everywhere: a command palette on `⌘K` / `Ctrl K`, **Quick add** on `⌘J` / `Ctrl J` (type “3.5h yesterday on 1234567 task 002 footing calcs; site visit Thursday 9–11” and preview the entries before saving; needs AI), keyboard shortcuts (`C` task, `L` log time, `E` event, `I` idea, `G` + letter to navigate), dark/light/system themes with a circular reveal, seven accent colours, spring-physics animations (reduced-motion aware), a mobile layout with a tab bar, and offline support.
 
 ## Architecture
 
 - **Vite + React 19 + TypeScript**, **Tailwind CSS v4** with OKLCH design tokens, and **Motion** for layout and transitions.
 - **Local-first data**: every change is written instantly to IndexedDB through a small Zustand store (`src/store/workspace.ts`).
-- **Sync** (`src/store/sync.ts`, `src/lib/sync.ts`): per-record, last-writer-wins merge with tombstones for deletes, so two devices converge without clobbering each other. Data goes to `workbench-v4.json` in a private gist you own.
-- **Sign-in**: the password is hashed with PBKDF2-SHA256 (310k iterations) and checked in the browser. This locks the app on your device; it is not server auth.
-- **Files** are stored as blobs in IndexedDB on the device. Their names, folders and project links sync; their contents stay local.
+- **Merge model** (`src/lib/sync.ts`): per-record, last-writer-wins, with tombstones for deletes, so devices converge without clobbering each other.
+- **Workbench Cloud** (`src/store/cloud.ts`, `supabase/migrations/0001_workbench.sql`): records live in one `wb_records` table protected by row-level security. A server-side sequence drives incremental pulls, a `wb_push` function applies last-writer-wins on the server, Realtime streams changes live, and file contents go to a private per-user Storage bucket (downloaded on demand on other devices). Auth is Supabase email/password, email link or GitHub. `supabase-js` loads only if Cloud is configured.
+- **Gist backup** (`src/store/sync.ts`): the same merge, written to `workbench-v4.json` in a private gist you own. It can run alongside Cloud.
+- **Device lock**: the password is hashed with PBKDF2-SHA256 (310k iterations) and checked in the browser.
+- **PDF Studio** (`src/features/pdf`): pdf.js (legacy build, for Safari) renders the pages. Markups are stored in PDF user space, so they're zoom- and rotation-independent and export exactly. pdf-lib builds exports, Tesseract (self-hosted worker and wasm) does OCR, and perfect-freehand draws ink. Heavy libraries load on demand.
+- **AI** (`src/lib/ai.ts`): the Anthropic SDK is called directly from the browser with your own key. The model is picked from your account's model list (newest Opus by default). Requests opt into server-side fallback and handle refusals, and structured outputs are validated with zod. The key is stored in this browser only and never synced.
 
 ```
 src/
   app/          routes, nav, App (auth gate)
   components/   ui kit (buttons, popovers, dialogs, pickers…) and layout (sidebar, palette, timer)
-  features/     one folder per area: home, timesheet, tasks, calendar, messages, projects, notes, ideas, whiteboard, files, tools, settings, auth
-  lib/          dates, sync merge, gist client, crypto, migration, seed data
+  features/     one folder per area: home, timesheet, tasks, calendar, messages, projects, notes, ideas, whiteboard, pdf, files, tools, settings, auth, ai
+  lib/          dates, sync merge, gist + Supabase clients, AI client, ink recognizer, WBS parsing, crypto, migration, seed data
+supabase/       SQL for Workbench Cloud (run once in your project)
   store/        workspace data, auth, sync engine, prefs, timer, ui
 ```
 
@@ -55,11 +60,26 @@ npm run build      # typecheck + production build into dist/
 
 The build uses relative paths and hash routing, so it works from any sub-path (e.g. `https://you.github.io/timetracker/`).
 
-## Sync setup
+## Workbench Cloud (Supabase) setup
+
+Live sync across devices, real sign-in, and files that follow you. It takes about three minutes:
+
+1. Create a free project at [supabase.com/dashboard/new](https://supabase.com/dashboard/new).
+2. In Workbench open **Settings → Cloud**, click **Copy setup SQL**, then paste it into the Supabase **SQL editor** and run it. It's safe to run again. It creates the table, row-level security, the sync function, the Realtime publication and a private storage bucket.
+3. From **Project Settings → API**, paste the **Project URL** and the **publishable (anon) key** into Workbench and connect. Never use the secret/service-role key; Workbench refuses it.
+4. Create an account (or use an email link, or GitHub if you enable that provider under *Authentication → Providers*). Sign in with the same account on your other devices.
+
+For email links and GitHub sign-in, add your site URL (for example `https://you.github.io/timetracker/`) under *Authentication → URL Configuration → Redirect URLs*.
+
+## Gist backup (optional)
 
 1. [Create a GitHub token](https://github.com/settings/tokens/new?scopes=gist&description=Workbench%20sync) with **only** the `gist` scope.
-2. Paste it during onboarding, or later under **Settings → Sync**.
+2. Paste it during onboarding, or later under **Settings → Gist backup**.
 3. Use the same token on another device and Workbench finds your gist and merges.
+
+## AI setup (optional)
+
+Add a Claude API key under **Settings → AI** (create one in the [Claude Console](https://platform.claude.com/settings/keys)). It's stored in this browser only. Requests go straight from your browser to Anthropic and are billed to your account. Without a key, everything else works, including Mermaid diagrams, OCR, compare and smart ink.
 
 ## Upgrading from TimeTracker
 
@@ -69,7 +89,8 @@ The build uses relative paths and hash routing, so it works from any sub-path (e
 
 ## Limits and next steps
 
-- Messages, task assignment and people are single-user: teammates are contacts, not live accounts. Real-time multi-user chat would need a shared backend (for example Supabase or Firebase), and the sync layer is written so a backend like that can be added.
-- File contents don't sync between devices yet. Names, folders and project links do.
+- Messages, task assignment and people are still single-user: Cloud syncs *your* devices, and teammates are contacts rather than accounts. Shared workspaces on top of the Cloud schema are the natural next step.
+- File contents sync through Workbench Cloud (files up to 50 MB). With gist-only sync they stay on the device where they were added.
+- PDF markups are flattened on export. Round-tripping them as editable PDF annotations for other apps is planned.
 
 MIT licensed.

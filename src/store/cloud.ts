@@ -175,7 +175,7 @@ async function push(sb: SupabaseClient, uid: string) {
     const { error } = await sb.rpc('wb_push', { records: chunk })
     if (error) {
       if (/function .*wb_push|schema cache/i.test(error.message)) {
-        throw new Error('Database not set up yet — run the Workbench SQL script in Supabase (Settings → Sync).')
+        throw new Error('Database not set up yet — run the Workbench SQL script in Supabase (Settings → Cloud).')
       }
       throw new Error(error.message)
     }
