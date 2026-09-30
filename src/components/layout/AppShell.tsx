@@ -10,6 +10,7 @@ import { useAuth } from '@/store/auth'
 import { useTimer } from '@/store/timer'
 import { Sidebar } from './Sidebar'
 import { CommandPalette } from './CommandPalette'
+import { QuickAddHost } from '@/features/ai/QuickAdd'
 import { CaptureHost } from './CaptureHost'
 import { TaskSheetHost } from '@/features/tasks/TaskSheet'
 import { Popover } from '@/components/ui/popover'
@@ -80,6 +81,7 @@ export function AppShell() {
       </div>
       <CommandPalette />
       <CaptureHost />
+      <QuickAddHost />
       <TaskSheetHost />
       <MobileNavSheet />
     </div>

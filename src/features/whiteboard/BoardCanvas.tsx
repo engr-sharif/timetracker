@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/misc'
 import { MenuItem, Popover } from '@/components/ui/popover'
 import { ProjectPicker } from '@/components/ui/pickers'
+import { createInkTracker, snapStroke } from './smart'
+import { AiMenu, InsertMenu, SmartInkToggle, useSmartInk } from './BoardTools'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -27,6 +29,29 @@ export default function BoardCanvas() {
   const lastHash = useRef<number | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [saved, setSaved] = useState(true)
+  const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null)
+  const [smartInk, setSmartInk] = useSmartInk()
+  const smartRef = useRef(smartInk)
+  smartRef.current = smartInk
+  const tracker = useRef(createInkTracker())
+  const seen = useRef(new Set<string>())
+
+  // Smart ink: when a pen stroke ends, snap it to a clean shape if that's what it looks like.
+  useEffect(() => {
+    if (!api) return
+    return api.onPointerUp((activeTool) => {
+      if (activeTool.type !== 'freedraw' || smartRef.current === 'off') return
+      tracker.current.release()
+      const held = tracker.current.held(api.getAppState().zoom.value)
+      setTimeout(() => {
+        const els = api.getSceneElements() as any[]
+        const last = [...els].reverse().find((e) => e.type === 'freedraw')
+        if (!last || seen.current.has(last.id) || Date.now() - last.updated > 2500) return
+        seen.current.add(last.id)
+        if (smartRef.current === 'always' || held) snapStroke(api, last)
+      }, 30)
+    })
+  }, [api])
   // Load the scene once; later remote updates don't clobber an open canvas.
   const initialData = useMemo(
     () =>
@@ -118,6 +143,9 @@ export default function BoardCanvas() {
           )}
         </span>
         <div className="ml-auto flex items-center gap-2">
+          <SmartInkToggle mode={smartInk} onChange={setSmartInk} />
+          <InsertMenu api={api} />
+          <AiMenu api={api} board={board} />
           <ProjectPicker value={board.projectId} onChange={(projectId) => ws().update('boards', id, { projectId })} placeholder="Link project" className="hidden sm:inline-flex" />
           <Popover
             role="menu"
@@ -140,7 +168,11 @@ export default function BoardCanvas() {
       <div className="excalidraw-host relative min-h-0 flex-1">
         <Excalidraw
           key={id}
-          excalidrawAPI={(api) => (apiRef.current = api)}
+          excalidrawAPI={(a) => {
+            apiRef.current = a
+            setApi(a)
+          }}
+          onPointerUpdate={(p) => tracker.current.update(p)}
           initialData={initialData as any}
           theme={theme}
           onChange={onChange}
