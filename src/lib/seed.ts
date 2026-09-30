@@ -43,7 +43,8 @@ export function seedSample() {
     client: 'County DOT',
     color: 'violet',
     status: 'active',
-    costCodes: ['100 Design', '200 Analysis', '300 QA/QC', '400 Meetings', '500 Site visit'],
+    costCodes: ['100', '200', '300', '400', '500'],
+    codeMeta: { '100': { name: 'Design' }, '200': { name: 'Analysis' }, '300': { name: 'QA/QC' }, '400': { name: 'Meetings' }, '500': { name: 'Site visit' } },
     budgetHours: 320,
     location: 'Riverside, Mile 14.2',
     manager: 'Priya Shah',
@@ -55,7 +56,8 @@ export function seedSample() {
     client: 'Metro Water District',
     color: 'teal',
     status: 'active',
-    costCodes: ['110 Process design', '120 Hydraulics', '300 QA/QC', '400 Meetings'],
+    costCodes: ['110', '120', '300', '400'],
+    codeMeta: { '110': { name: 'Process design' }, '120': { name: 'Hydraulics' }, '300': { name: 'QA/QC' }, '400': { name: 'Meetings' } },
     budgetHours: 540,
     manager: 'Marcus Chen',
   })
@@ -65,7 +67,8 @@ export function seedSample() {
     client: 'Port Authority',
     color: 'amber',
     status: 'active',
-    costCodes: ['200 Condition survey', '210 Report', '500 Site visit'],
+    costCodes: ['200', '210', '500'],
+    codeMeta: { '200': { name: 'Condition survey' }, '210': { name: 'Report' }, '500': { name: 'Site visit' } },
     budgetHours: 120,
   })
   const oh = w.create('projects', {
@@ -74,7 +77,8 @@ export function seedSample() {
     client: 'Internal',
     color: 'slate',
     status: 'active',
-    costCodes: ['Admin', 'Training', 'Business development', 'PTO'],
+    costCodes: ['900', '910', '920', '990'],
+    codeMeta: { '900': { name: 'Admin', billable: false }, '910': { name: 'Training', billable: false }, '920': { name: 'Business development', billable: false }, '990': { name: 'PTO', billable: false } },
   })
 
   const priya = w.create('people', { name: 'Priya Shah', role: 'Project Manager', email: 'priya@example.com', color: 'pink' })
@@ -83,15 +87,15 @@ export function seedSample() {
   w.create('people', { name: 'Jordan Blake', role: 'Client PM', company: 'County DOT', color: 'orange' })
 
   const entries: [number, string, string, number, string, boolean][] = [
-    [0, bridge.id, '200 Analysis', 3.5, 'Girder capacity check — load rating spreadsheet', true],
-    [0, water.id, '400 Meetings', 1, 'Weekly coordination call', true],
-    [0, oh.id, 'Admin', 0.5, 'Timesheets & email', false],
-    [1, bridge.id, '100 Design', 4, 'Bearing retrofit details, sheets S-201 to S-204', true],
-    [1, seawall.id, '500 Site visit', 3, 'Condition survey — north bulkhead', true],
-    [2, water.id, '120 Hydraulics', 5, 'Filter gallery hydraulic profile', true],
-    [2, bridge.id, '300 QA/QC', 2, 'Checked Elena’s deck drainage drawings', true],
-    [3, seawall.id, '210 Report', 4.5, 'Draft findings section', true],
-    [3, oh.id, 'Training', 1.5, 'PE continuing ed — seismic webinar', false],
+    [0, bridge.id, '200', 3.5, 'Girder capacity check — load rating spreadsheet', true],
+    [0, water.id, '400', 1, 'Weekly coordination call', true],
+    [0, oh.id, '900', 0.5, 'Timesheets & email', false],
+    [1, bridge.id, '100', 4, 'Bearing retrofit details, sheets S-201 to S-204', true],
+    [1, seawall.id, '500', 3, 'Condition survey — north bulkhead', true],
+    [2, water.id, '120', 5, 'Filter gallery hydraulic profile', true],
+    [2, bridge.id, '300', 2, 'Checked Elena’s deck drainage drawings', true],
+    [3, seawall.id, '210', 4.5, 'Draft findings section', true],
+    [3, oh.id, '910', 1.5, 'PE continuing ed — seismic webinar', false],
   ]
   const todayIdx = Math.min(6, Math.max(0, Math.floor((new Date().getTime() - ws0.getTime()) / 86400000)))
   for (const [d, projectId, costCode, hours, description, billable] of entries) {

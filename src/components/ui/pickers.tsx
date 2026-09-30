@@ -17,6 +17,7 @@ import { Calendar, Check, ChevronLeft, ChevronRight, FolderKanban, Plus, Search,
 import { cn, fuzzy, hueColor } from '@/lib/utils'
 import { fromKey, relativeDay, toKey } from '@/lib/dates'
 import { PRIORITIES, TASK_STATUSES } from '@/lib/meta'
+import { codeName, mergeTasks, openCodes, taskLabel } from '@/lib/wbs'
 import { useList, ws } from '@/store/workspace'
 import { useAuth } from '@/store/auth'
 import type { Priority, TaskStatus } from '@/store/types'
@@ -306,25 +307,31 @@ export function CostCodePicker({
 }) {
   const projects = useList('projects')
   const project = projects.find((p) => p.id === projectId)
-  const codes = project?.costCodes ?? []
+  const codes = openCodes(project)
+  const name = value ? codeName(project, value) : undefined
   return (
     <Combobox
-      items={codes.map((c) => ({ value: c, label: c }))}
+      items={codes.map((c) => {
+        const meta = project?.codeMeta?.[c]
+        return { value: c, label: meta?.name ? `${c} · ${meta.name}` : c, hint: meta?.billable === false ? 'Non-billable' : undefined, keywords: meta?.name }
+      })}
       value={value}
       onChange={onChange}
-      placeholder={project ? 'Cost code…' : 'Pick a project first'}
+      placeholder={project ? 'Search tasks…' : 'Pick a project first'}
+      className="w-80"
       onCreate={
         project
           ? (code) => {
-              ws().update('projects', project.id, { costCodes: [...project.costCodes, code] })
+              ws().update('projects', project.id, mergeTasks(project, [{ code }]))
               return code
             }
           : undefined
       }
-      createLabel={(q) => `Add cost code “${q}”`}
+      createLabel={(q) => `Add task code “${q}”`}
       trigger={
-        <button type="button" className={cn(chip, 'font-mono', className)} disabled={!project}>
-          <span className="truncate">{value || 'Cost code'}</span>
+        <button type="button" className={cn(chip, className)} disabled={!project} title={value ? taskLabel(project, value) : undefined}>
+          <span className="font-mono">{value || 'Task code'}</span>
+          {name && <span className="max-w-40 truncate text-subtle">{name}</span>}
         </button>
       }
     />

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
-import { FolderKanban, MapPin, Plus, Search } from 'lucide-react'
+import { ClipboardPaste, FolderKanban, MapPin, Plus, Search } from 'lucide-react'
 import { cn, formatHours, hueColor, hueVars } from '@/lib/utils'
 import { relativeDay } from '@/lib/dates'
 import { PROJECT_STATUSES } from '@/lib/meta'
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/field'
 import { Badge, EmptyState, Segmented } from '@/components/ui/misc'
 import { ProjectFormDialog } from './ProjectForm'
+import { ImportProjectsDialog } from './ImportProjectsDialog'
 import { useProjectStats } from './projectStats'
 
 export default function ProjectsPage() {
@@ -21,6 +22,7 @@ export default function ProjectsPage() {
   const [filter, setFilter] = useState<ProjectStatus | 'all'>('active')
   const [q, setQ] = useState('')
   const [creating, setCreating] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const list = useMemo(() => {
     const needle = q.toLowerCase()
@@ -36,9 +38,14 @@ export default function ProjectsPage() {
         title="Projects"
         subtitle={`${projects.filter((p) => p.status === 'active').length} active · ${projects.length} total`}
         actions={
-          <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
-            New project
-          </Button>
+          <>
+            <Button icon={<ClipboardPaste className="size-4" />} onClick={() => setImporting(true)}>
+              Import from timesheet
+            </Button>
+            <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
+              New project
+            </Button>
+          </>
         }
       />
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -128,6 +135,7 @@ export default function ProjectsPage() {
           </AnimatePresence>
         </motion.div>
       )}
+      <ImportProjectsDialog open={importing} onClose={() => setImporting(false)} />
       <ProjectFormDialog open={creating} onClose={() => setCreating(false)} onSaved={(p) => navigate(`/projects/${p.id}`)} />
     </Page>
   )

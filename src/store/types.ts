@@ -24,13 +24,23 @@ export type Hue =
 
 export type ProjectStatus = 'active' | 'on-hold' | 'complete'
 
+/** Per-task details for a project's task/cost codes (keyed by code). */
+export interface TaskCodeMeta {
+  name?: string
+  budgetHours?: number
+  billable?: boolean
+  closed?: boolean
+}
+
 export interface Project extends BaseRecord {
   number: string
   name: string
   client: string
   color: Hue
   status: ProjectStatus
+  /** Task / cost codes in display order, e.g. "01.002". Entries reference these by value. */
   costCodes: string[]
+  codeMeta?: Record<string, TaskCodeMeta>
   budgetHours?: number
   description?: string
   location?: string

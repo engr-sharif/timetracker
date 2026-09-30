@@ -11,6 +11,7 @@ import { Field, Textarea } from '@/components/ui/field'
 import { Kbd, Switch } from '@/components/ui/misc'
 import { CostCodePicker, DatePicker, ProjectPicker } from '@/components/ui/pickers'
 import { modKey } from '@/lib/utils'
+import { isBillable } from '@/lib/wbs'
 
 const QUICK = [0.25, 0.5, 1, 2, 4, 8]
 
@@ -120,7 +121,15 @@ export function EntryForm({
             setCostCode(lastUsedFor(id)?.costCode ?? '')
           }}
         />
-        <CostCodePicker projectId={projectId} value={costCode} onChange={setCostCode} />
+        <CostCodePicker
+          projectId={projectId}
+          value={costCode}
+          onChange={(code) => {
+            setCostCode(code)
+            const project = projectId ? useWorkspace.getState().doc.tables.projects[projectId] : undefined
+            setBillable(isBillable(project, code, settings.defaultBillable))
+          }}
+        />
       </div>
 
       <Field label="What did you work on?">
