@@ -24,9 +24,12 @@ export function useHotkeys(bindings: Binding[]) {
       const typing = isTypingTarget(e.target)
       const key = e.key.toLowerCase()
       const mod = e.metaKey || e.ctrlKey
+      // Surfaces with their own single-key shortcuts (PDF Studio) only let ⌘/Ctrl combos through.
+      const scoped = e.target instanceof HTMLElement && !!e.target.closest('[data-own-keys]')
 
       for (const b of ref.current) {
         if (typing && !b.allowInInputs) continue
+        if (scoped && !b.combo.includes('mod')) continue
         const parts = b.combo.split(' ')
         if (parts.length === 2) {
           if (!mod && chord === parts[0] && key === parts[1]) {
@@ -49,7 +52,7 @@ export function useHotkeys(bindings: Binding[]) {
         }
       }
 
-      if (!typing && !mod && ref.current.some((b) => b.combo.startsWith(key + ' '))) {
+      if (!typing && !scoped && !mod && ref.current.some((b) => b.combo.startsWith(key + ' '))) {
         chord = key
         clearTimeout(chordTimer)
         chordTimer = setTimeout(() => (chord = null), 900)

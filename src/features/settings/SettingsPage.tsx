@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
-import { Check, Cloud, Download, ExternalLink, Keyboard, KeyRound, Lock, Monitor, Moon, Palette, Pencil, RefreshCw, Sun, Trash, Upload, User, UserPlus, Users, Briefcase, Database, GitBranch } from 'lucide-react'
+import { Check, Cloud, Download, ExternalLink, Keyboard, KeyRound, Lock, Monitor, Moon, Palette, Pencil, RefreshCw, Sun, Trash, Upload, User, UserPlus, Users, Briefcase, Database, GitBranch, Sparkles } from 'lucide-react'
 import { CloudSection } from './CloudSection'
+import { AiSection } from './AiSection'
 import { cn, download, hueColor, modKey } from '@/lib/utils'
 import { timeAgo } from '@/lib/dates'
 import { validateToken } from '@/lib/gist'
@@ -27,6 +28,7 @@ const SECTIONS = [
   { id: 'people', label: 'People', icon: Users },
   { id: 'sync', label: 'Cloud', icon: Cloud },
   { id: 'gist', label: 'Gist backup', icon: GitBranch },
+  { id: 'ai', label: 'AI', icon: Sparkles },
   { id: 'security', label: 'Security', icon: KeyRound },
   { id: 'data', label: 'Data', icon: Database },
   { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard },
@@ -79,6 +81,7 @@ export default function SettingsPage() {
           <People />
           <CloudSection />
           <SyncSection />
+          <AiSection />
           <Security />
           <DataSection />
           <Shortcuts />

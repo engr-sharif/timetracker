@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
 import {
+  PenTool,
   Download,
   Ellipsis,
   File as FileIcon,
@@ -293,6 +294,11 @@ function FileMenu({ f, glass }: { f: FileMeta; glass?: boolean }) {
         </button>
       }
     >
+      {fileKind(f.name, f.type) === 'pdf' && (
+        <Link to={`/pdf/${f.id}`} className="flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-fg hover:bg-surface-2 [&_svg]:size-4 [&_svg]:text-muted">
+          <PenTool /> Open in PDF Studio
+        </Link>
+      )}
       <MenuItem icon={<Download />} onSelect={() => void downloadFile(f)}>
         Download
       </MenuItem>
@@ -346,9 +352,20 @@ function Preview({ id, onClose }: { id: string | null; onClose: () => void }) {
           <ProjectPicker value={shown.projectId} onChange={(projectId) => ws().update('files', shown.id, { projectId })} />
           <span className="text-xs text-subtle">{formatBytes(shown.size)}</span>
         </div>
-        <Button icon={<Download className="size-4" />} variant="primary" onClick={() => void downloadFile(shown)}>
-          Download
-        </Button>
+        {k === 'pdf' ? (
+          <>
+            <Button icon={<Download className="size-4" />} onClick={() => void downloadFile(shown)}>
+              Download
+            </Button>
+            <Link to={`/pdf/${shown.id}`} className="inline-flex h-9 items-center gap-2 rounded-[10px] bg-accent px-3.5 text-sm font-medium text-accent-fg hover:bg-accent-strong">
+              <PenTool className="size-4" /> Open in PDF Studio
+            </Link>
+          </>
+        ) : (
+          <Button icon={<Download className="size-4" />} variant="primary" onClick={() => void downloadFile(shown)}>
+            Download
+          </Button>
+        )}
       </>
     )}>
       {shown && (
