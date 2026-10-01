@@ -247,6 +247,22 @@ export async function ocrPage(fileId: string, index: number, opts: { lang?: stri
   return result
 }
 
+/** OCRs a photo or scan image into paragraphs (used by the Speed Reader's camera import). */
+export async function ocrImage(image: Blob, opts: { lang?: string; onProgress?: (p: number, status: string) => void } = {}) {
+  const worker = await ocrWorker(opts.lang ?? 'eng', opts.onProgress)
+  const { data } = await worker.recognize(image, {}, { blocks: true })
+  const paragraphs: string[] = []
+  for (const block of data.blocks ?? [])
+    for (const para of block.paragraphs) {
+      const text = para.lines
+        .map((l) => l.words.filter((w) => w.confidence >= 30).map((w) => w.text).join(' '))
+        .join('\n')
+        .trim()
+      if (text) paragraphs.push(text)
+    }
+  return { paragraphs, confidence: data.confidence }
+}
+
 export async function stopOcr() {
   if (!workerP) return
   const w = workerP

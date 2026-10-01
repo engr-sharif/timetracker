@@ -1,4 +1,5 @@
 import {
+  BookOpenText,
   CalendarDays,
   Clock,
   FolderKanban,
@@ -35,6 +36,7 @@ export const NAV: NavItem[] = [
   { to: '/ideas', label: 'Ideas', icon: Lightbulb, key: 'i', group: 'think' },
   { to: '/boards', label: 'Whiteboards', icon: Shapes, key: 'w', group: 'think' },
   { to: '/pdf', label: 'PDF Studio', icon: FileText, key: 'd', group: 'think' },
+  { to: '/read', label: 'Speed Reader', icon: BookOpenText, key: 'r', group: 'think' },
   { to: '/files', label: 'Files', icon: FolderOpen, key: 'f', group: 'think' },
   { to: '/tools', label: 'Tools', icon: Wrench, key: 'o', group: 'system' },
   { to: '/settings', label: 'Settings', icon: Settings, key: 's', group: 'system' },

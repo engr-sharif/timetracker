@@ -15,6 +15,7 @@ const BoardsPage = lazy(() => import('@/features/whiteboard/BoardsPage'))
 const BoardCanvas = lazy(() => import('@/features/whiteboard/BoardCanvas'))
 const FilesPage = lazy(() => import('@/features/files/FilesPage'))
 const PdfStudioPage = lazy(() => import('@/features/pdf/PdfStudioPage'))
+const ReaderPage = lazy(() => import('@/features/reader/ReaderPage'))
 const ToolsPage = lazy(() => import('@/features/tools/ToolsPage'))
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 
@@ -36,6 +37,7 @@ export const router = createHashRouter([
       { path: 'boards/:id', element: <BoardCanvas /> },
       { path: 'files', element: <FilesPage /> },
       { path: 'pdf/:id?', element: <PdfStudioPage /> },
+      { path: 'read/:id?', element: <ReaderPage /> },
       { path: 'tools/:tool?', element: <ToolsPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: '*', element: <HomePage /> },

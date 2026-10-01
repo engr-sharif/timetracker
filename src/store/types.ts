@@ -221,6 +221,28 @@ export interface PdfDoc extends BaseRecord {
   pageScales?: Record<string, PdfCalibration>
 }
 
+export type ReadingKind = 'pdf' | 'epub' | 'docx' | 'html' | 'md' | 'text' | 'rtf' | 'image'
+export type ReadingStatus = 'new' | 'reading' | 'finished'
+
+/** A document in the Speed Reader. The source lives in Files; the parsed text is cached per device. */
+export interface Reading extends BaseRecord {
+  fileId: string
+  title: string
+  author?: string
+  kind: ReadingKind
+  /** total words, known once the document has been parsed */
+  words: number
+  /** word index the reader is at */
+  position: number
+  status: ReadingStatus
+  lastReadAt?: string
+  finishedAt?: string
+  projectId?: string
+  /** reading time and words actually read, per day (yyyy-MM-dd) */
+  log?: Record<string, { words: number; seconds: number }>
+  bookmarks?: { at: number; label: string; createdAt: string }[]
+}
+
 export interface Snippet extends BaseRecord {
   title: string
   body: string
@@ -242,6 +264,7 @@ export interface Collections {
   files: FileMeta
   snippets: Snippet
   pdfs: PdfDoc
+  readings: Reading
 }
 
 export type CollectionName = keyof Collections
@@ -260,6 +283,7 @@ export const COLLECTIONS: CollectionName[] = [
   'files',
   'snippets',
   'pdfs',
+  'readings',
 ]
 
 export type Tables = { [K in CollectionName]: Record<string, Collections[K]> }
