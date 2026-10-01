@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
-import { X } from 'lucide-react'
-import { COMMON_COST_CODES, PROJECT_STATUSES } from '@/lib/meta'
+import { PROJECT_STATUSES } from '@/lib/meta'
 import { randomHue } from '@/lib/utils'
 import { ws } from '@/store/workspace'
 import type { Hue, Project, ProjectStatus } from '@/store/types'
@@ -10,10 +8,11 @@ import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/field'
 import { HuePicker, Segmented } from '@/components/ui/misc'
+import { TaskCodesEditor, type TaskCodesValue } from './TaskCodesEditor'
 
 export function ProjectFormDialog({ open, onClose, project, onSaved }: { open: boolean; onClose: () => void; project?: Project; onSaved?: (p: Project) => void }) {
   return (
-    <Dialog open={open} onClose={onClose} title={project ? 'Edit project' : 'New project'} description={project ? undefined : 'Project numbers and cost codes power your timesheet.'} className="max-w-xl">
+    <Dialog open={open} onClose={onClose} title={project ? 'Edit project' : 'New project'} description={project ? undefined : 'Project numbers and cost codes power your timesheet.'} className="max-w-2xl">
       <ProjectForm project={project} onDone={(p) => { onSaved?.(p); onClose() }} />
     </Dialog>
   )
@@ -25,18 +24,11 @@ function ProjectForm({ project, onDone }: { project?: Project; onDone: (p: Proje
   const [client, setClient] = useState(project?.client ?? '')
   const [color, setColor] = useState<Hue>(project?.color ?? randomHue())
   const [status, setStatus] = useState<ProjectStatus>(project?.status ?? 'active')
-  const [codes, setCodes] = useState<string[]>(project?.costCodes ?? [])
-  const [codeInput, setCodeInput] = useState('')
+  const [tasks, setTasks] = useState<TaskCodesValue>({ costCodes: project?.costCodes ?? [], codeMeta: project?.codeMeta ?? {} })
   const [budget, setBudget] = useState(project?.budgetHours?.toString() ?? '')
   const [manager, setManager] = useState(project?.manager ?? '')
   const [location, setLocation] = useState(project?.location ?? '')
   const [description, setDescription] = useState(project?.description ?? '')
-
-  const addCodes = (raw: string) => {
-    const next = raw.split(/[,\n]/).map((c) => c.trim()).filter(Boolean)
-    if (next.length) setCodes((c) => [...new Set([...c, ...next])])
-    setCodeInput('')
-  }
 
   const submit = () => {
     if (!name.trim()) return
@@ -46,7 +38,8 @@ function ProjectForm({ project, onDone }: { project?: Project; onDone: (p: Proje
       client: client.trim(),
       color,
       status,
-      costCodes: codeInput.trim() ? [...new Set([...codes, codeInput.trim()])] : codes,
+      costCodes: tasks.costCodes,
+      codeMeta: tasks.codeMeta,
       budgetHours: budget ? Number(budget) : undefined,
       manager: manager.trim() || undefined,
       location: location.trim() || undefined,
@@ -82,54 +75,8 @@ function ProjectForm({ project, onDone }: { project?: Project; onDone: (p: Proje
           <Input value={budget} onChange={(e) => setBudget(e.target.value.replace(/[^\d.]/g, ''))} placeholder="Optional" inputMode="decimal" />
         </Field>
       </div>
-      <Field label="Cost codes" hint="Press Enter or comma to add. These show up when logging time.">
-        <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-[10px] border border-border bg-surface-2/60 p-1.5 focus-within:border-accent/60 focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
-          <AnimatePresence initial={false}>
-            {codes.map((c) => (
-              <motion.span
-                key={c}
-                layout
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                className="inline-flex h-6 items-center gap-1 rounded-md bg-surface-3 pr-1 pl-2 font-mono text-[12px]"
-              >
-                {c}
-                <button type="button" onClick={() => setCodes((x) => x.filter((y) => y !== c))} className="text-subtle hover:text-fg">
-                  <X className="size-3" />
-                </button>
-              </motion.span>
-            ))}
-          </AnimatePresence>
-          <input
-            value={codeInput}
-            onChange={(e) => (e.target.value.endsWith(',') ? addCodes(e.target.value) : setCodeInput(e.target.value))}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                addCodes(codeInput)
-              } else if (e.key === 'Backspace' && !codeInput && codes.length) setCodes((c) => c.slice(0, -1))
-            }}
-            onPaste={(e) => {
-              const t = e.clipboardData.getData('text')
-              if (/[,\n]/.test(t)) {
-                e.preventDefault()
-                addCodes(t)
-              }
-            }}
-            placeholder={codes.length ? '' : '100 Design, 200 Analysis…'}
-            className="h-6 min-w-32 flex-1 bg-transparent px-1 font-mono text-[12.5px] outline-none"
-          />
-        </div>
-        {COMMON_COST_CODES.some((c) => !codes.includes(c)) && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {COMMON_COST_CODES.filter((c) => !codes.includes(c)).map((c) => (
-              <button key={c} type="button" onClick={() => setCodes((x) => [...x, c])} className="rounded-md border border-dashed border-border-strong px-1.5 py-0.5 text-[11px] text-subtle hover:border-accent/50 hover:text-fg">
-                + {c}
-              </button>
-            ))}
-          </div>
-        )}
+      <Field label="Tasks / cost codes" hint="These appear when logging time. Paste straight from your timesheet to add many at once.">
+        <TaskCodesEditor value={tasks} onChange={setTasks} projectNumber={number.trim() || undefined} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Project manager">

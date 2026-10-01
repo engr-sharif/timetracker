@@ -10,6 +10,7 @@ import { useAuth } from '@/store/auth'
 import { useTimer } from '@/store/timer'
 import { Sidebar } from './Sidebar'
 import { CommandPalette } from './CommandPalette'
+import { QuickAddHost } from '@/features/ai/QuickAdd'
 import { CaptureHost } from './CaptureHost'
 import { TaskSheetHost } from '@/features/tasks/TaskSheet'
 import { Popover } from '@/components/ui/popover'
@@ -56,12 +57,12 @@ export function AppShell() {
   }, [location.pathname])
 
   return (
-    <div className="grain relative flex h-dvh overflow-hidden">
+    <div className="grain relative flex h-dvh overflow-clip">
       <div className="aurora" aria-hidden />
       <Sidebar />
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         <MobileTopBar />
-        <main className="relative min-h-0 flex-1 overflow-hidden">
+        <main className="relative min-h-0 flex-1 overflow-clip">
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.div
               key={section}
@@ -80,6 +81,7 @@ export function AppShell() {
       </div>
       <CommandPalette />
       <CaptureHost />
+      <QuickAddHost />
       <TaskSheetHost />
       <MobileNavSheet />
     </div>

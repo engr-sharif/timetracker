@@ -70,7 +70,8 @@ export function download(filename: string, data: Blob | string, type = 'applicat
   a.href = url
   a.download = filename
   a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  // Large files can take a moment to start downloading; don't revoke too early.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
 /** Lightweight fuzzy match: every query char appears in order. Returns score (higher better) or -1. */

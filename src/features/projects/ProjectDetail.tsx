@@ -10,6 +10,7 @@ import { PROJECT_STATUSES } from '@/lib/meta'
 import { useUI } from '@/store/ui'
 import { useTimer } from '@/store/timer'
 import { useList, useRecord, ws } from '@/store/workspace'
+import type { Project } from '@/store/types'
 import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
 import { Avatar, Badge, Checkbox, EmptyState, ProgressRing } from '@/components/ui/misc'
@@ -139,7 +140,7 @@ export default function ProjectDetail() {
 
         <AnimatePresence mode="wait">
           <motion.div key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
-            {tab === 'Overview' && <Overview projectId={project.id} burn={burn} budget={project.budgetHours} total={stats?.total ?? 0} byCode={stats?.byCode} costCodes={project.costCodes} />}
+            {tab === 'Overview' && <Overview project={project} burn={burn} budget={project.budgetHours} total={stats?.total ?? 0} byCode={stats?.byCode} />}
             {tab === 'Tasks' && <ProjectTasks projectId={project.id} />}
             {tab === 'Time' && <ProjectTime projectId={project.id} />}
             {tab === 'Knowledge' && <Knowledge projectId={project.id} />}
@@ -160,7 +161,9 @@ function HeaderStat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Overview({ projectId, burn, budget, total, byCode, costCodes }: { projectId: string; burn: number; budget?: number; total: number; byCode?: Map<string, number>; costCodes: string[] }) {
+function Overview({ project, burn, budget, total, byCode }: { project: Project; burn: number; budget?: number; total: number; byCode?: Map<string, number> }) {
+  const projectId = project.id
+  const costCodes = project.costCodes
   const tasks = useList('tasks')
   const open = tasks.filter((t) => t.projectId === projectId && t.status !== 'done').sort((a, b) => (a.due ?? '9').localeCompare(b.due ?? '9')).slice(0, 6)
   const openTask = useUI((s) => s.openTask)
@@ -187,19 +190,34 @@ function Overview({ projectId, burn, budget, total, byCode, costCodes }: { proje
         )}
       </section>
       <section className="rounded-2xl border border-border bg-surface/70 p-5">
-        <h3 className="mb-4 text-[13px] font-semibold text-muted">Hours by cost code</h3>
-        <div className="space-y-3">
-          {codes.length === 0 && <p className="py-8 text-center text-sm text-subtle">No cost codes yet.</p>}
+        <h3 className="mb-4 text-[13px] font-semibold text-muted">Hours by task</h3>
+        <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
+          {codes.length === 0 && <p className="py-8 text-center text-sm text-subtle">No tasks yet. Edit the project to add task codes.</p>}
           {codes.map((c, i) => {
             const h = byCode?.get(c) ?? 0
+            const meta = project.codeMeta?.[c]
+            const taskBudget = meta?.budgetHours
+            const pct = taskBudget ? h / taskBudget : h / max
             return (
-              <div key={c}>
-                <div className="mb-1 flex justify-between text-[12.5px]">
-                  <span className="font-mono text-muted">{c}</span>
-                  <span className="font-mono tabular">{formatHours(h)}h</span>
+              <div key={c} className={meta?.closed ? 'opacity-50' : undefined}>
+                <div className="mb-1 flex items-baseline justify-between gap-2 text-[12.5px]">
+                  <span className="min-w-0 truncate">
+                    <span className="font-mono text-muted">{c}</span>
+                    {meta?.name && <span className="ml-2 text-fg">{meta.name}</span>}
+                  </span>
+                  <span className={cn('shrink-0 font-mono tabular', taskBudget && h > taskBudget && 'text-danger')}>
+                    {formatHours(h)}
+                    {taskBudget ? <span className="text-subtle">/{taskBudget}</span> : null}h
+                  </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
-                  <motion.div className="h-full rounded-full bg-[var(--hue)]" initial={{ width: 0 }} animate={{ width: `${(h / max) * 100}%` }} transition={{ type: 'spring', stiffness: 90, damping: 20, delay: i * 0.04 }} />
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: taskBudget && h > taskBudget ? 'var(--danger)' : taskBudget && pct > 0.85 ? 'var(--warning)' : 'var(--hue)' }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, pct * 100)}%` }}
+                    transition={{ type: 'spring', stiffness: 90, damping: 20, delay: i * 0.03 }}
+                  />
                 </div>
               </div>
             )

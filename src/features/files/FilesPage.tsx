@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
 import {
+  PenTool,
   Download,
   Ellipsis,
   File as FileIcon,
@@ -27,6 +28,7 @@ import { cn, formatBytes } from '@/lib/utils'
 import { timeAgo } from '@/lib/dates'
 import { blobUrl, deleteBlob, fileKind, getBlob, putBlob, storageEstimate, type FileKind } from '@/lib/files'
 import { useList, useTable, ws } from '@/store/workspace'
+import { deleteCloudBlob, useCloud } from '@/store/cloud'
 import type { FileMeta, Hue } from '@/store/types'
 import { Page, PageHeader } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
@@ -72,6 +74,7 @@ export default function FilesPage() {
   const [q, setQ] = useState('')
   const [dragging, setDragging] = useState(false)
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null)
+  const cloudOn = useCloud((s) => !!s.user)
   const inputRef = useRef<HTMLInputElement>(null)
   const preview = params.get('focus')
 
@@ -157,7 +160,7 @@ export default function FilesPage() {
                 <div className="h-1 overflow-hidden rounded-full bg-surface-3">
                   <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(1, (usage.usage / usage.quota) * 100)}%` }} />
                 </div>
-                <p className="mt-2 text-[10.5px] leading-snug text-subtle">Files stay on this device (IndexedDB). File names and folders sync.</p>
+                <p className="mt-2 text-[10.5px] leading-snug text-subtle">{cloudOn ? 'Files sync through Workbench Cloud and download on demand on your other devices.' : 'Files stay on this device. Connect Workbench Cloud in Settings to sync them.'}</p>
               </div>
             )}
           </aside>
@@ -291,6 +294,11 @@ function FileMenu({ f, glass }: { f: FileMeta; glass?: boolean }) {
         </button>
       }
     >
+      {fileKind(f.name, f.type) === 'pdf' && (
+        <Link to={`/pdf/${f.id}`} className="flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-fg hover:bg-surface-2 [&_svg]:size-4 [&_svg]:text-muted">
+          <PenTool /> Open in PDF Studio
+        </Link>
+      )}
       <MenuItem icon={<Download />} onSelect={() => void downloadFile(f)}>
         Download
       </MenuItem>
@@ -313,6 +321,7 @@ function FileMenu({ f, glass }: { f: FileMeta; glass?: boolean }) {
         onSelect={async () => {
           ws().remove('files', f.id)
           await deleteBlob(f.id)
+          void deleteCloudBlob(f.id)
           toast('File deleted')
         }}
       >
@@ -343,9 +352,20 @@ function Preview({ id, onClose }: { id: string | null; onClose: () => void }) {
           <ProjectPicker value={shown.projectId} onChange={(projectId) => ws().update('files', shown.id, { projectId })} />
           <span className="text-xs text-subtle">{formatBytes(shown.size)}</span>
         </div>
-        <Button icon={<Download className="size-4" />} variant="primary" onClick={() => void downloadFile(shown)}>
-          Download
-        </Button>
+        {k === 'pdf' ? (
+          <>
+            <Button icon={<Download className="size-4" />} onClick={() => void downloadFile(shown)}>
+              Download
+            </Button>
+            <Link to={`/pdf/${shown.id}`} className="inline-flex h-9 items-center gap-2 rounded-[10px] bg-accent px-3.5 text-sm font-medium text-accent-fg hover:bg-accent-strong">
+              <PenTool className="size-4" /> Open in PDF Studio
+            </Link>
+          </>
+        ) : (
+          <Button icon={<Download className="size-4" />} variant="primary" onClick={() => void downloadFile(shown)}>
+            Download
+          </Button>
+        )}
       </>
     )}>
       {shown && (

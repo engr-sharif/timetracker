@@ -14,6 +14,7 @@ import { MenuItem, MenuSeparator, Popover } from '@/components/ui/popover'
 import { ProjectPicker } from '@/components/ui/pickers'
 import { confirm } from '@/components/ui/dialog'
 import { useCreateActions } from '@/components/layout/CreateMenu'
+import { NoteAi } from './NoteAi'
 
 const NoteEditor = lazy(() => import('./NoteEditor'))
 
@@ -105,7 +106,8 @@ export default function NotesPage() {
 function NoteView({ id }: { id: string }) {
   const note = useRecord('notes', id)
   const navigate = useNavigate()
-  const [initial] = useState(() => note?.content)
+  const [initial, setInitial] = useState(() => note?.content)
+  const [editorKey, setEditorKey] = useState(0)
   if (!note) return <EmptyState icon={<NotebookPen />} title="Note not found" body="It may have been deleted." />
 
   const update = (patch: Partial<Note>) => ws().update('notes', id, patch)
@@ -125,6 +127,13 @@ function NoteView({ id }: { id: string }) {
         </Link>
         <ProjectPicker value={note.projectId} onChange={(projectId) => update({ projectId })} placeholder="Link project" />
         <span className="ml-auto text-xs text-subtle">Edited {timeAgo(note.updatedAt)}</span>
+        <NoteAi
+          note={note}
+          onContentReplaced={() => {
+            setInitial(ws().doc.tables.notes[id]?.content)
+            setEditorKey((k) => k + 1)
+          }}
+        />
         <IconButton label={note.pinned ? 'Unpin' : 'Pin'} onClick={() => update({ pinned: !note.pinned })} active={note.pinned}>
           {note.pinned ? <PinOff /> : <Pin />}
         </IconButton>
@@ -192,7 +201,7 @@ function NoteView({ id }: { id: string }) {
         className="field-sizing-content mb-4 w-full resize-none bg-transparent text-[34px] leading-tight font-semibold tracking-[-0.03em] outline-none placeholder:text-subtle/50"
       />
       <Suspense fallback={<Spinner className="size-5 text-subtle" />}>
-        <NoteEditor content={initial} onChange={(content, text) => update({ content, text })} />
+        <NoteEditor key={editorKey} content={initial} onChange={(content, text) => update({ content, text })} />
       </Suspense>
     </motion.article>
   )

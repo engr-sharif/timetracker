@@ -21,8 +21,11 @@ import {
   SquareCheckBig,
   Sun,
   User,
+  Sparkles,
 } from 'lucide-react'
 import { NAV } from '@/app/nav'
+import { modKey } from '@/lib/utils'
+import { useQuickAdd } from '@/features/ai/QuickAdd'
 import { useUI } from '@/store/ui'
 import { useWorkspace } from '@/store/workspace'
 import { useAuth } from '@/store/auth'
@@ -108,7 +111,16 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
       <Command.List className="flex-1 overflow-y-auto p-2 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pt-2.5 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-subtle [&_[cmdk-group-heading]]:uppercase">
         <Command.Empty className="py-12 text-center text-sm text-subtle">No results for “{search}”</Command.Empty>
 
+        {q.length >= 6 && (
+          <Command.Group heading="AI">
+            <Item icon={<Sparkles />} onSelect={run(() => useQuickAdd.getState().show(q))} value={`ai quick add ${q}`} hint="Time, tasks, events">
+              Quick add: “{q.length > 48 ? q.slice(0, 48) + '…' : q}”
+            </Item>
+          </Command.Group>
+        )}
+
         <Command.Group heading="Create">
+          <Item icon={<Sparkles />} onSelect={run(() => useQuickAdd.getState().show())} shortcut={`${modKey()} J`} value="quick add with ai natural language">Quick add with AI…</Item>
           <Item icon={<SquareCheckBig />} onSelect={run(create.task)} shortcut="C">New task</Item>
           <Item icon={<Clock />} onSelect={run(create.time)} shortcut="L">Log time</Item>
           <Item icon={<CalendarDays />} onSelect={run(create.event)} shortcut="E">New calendar event</Item>

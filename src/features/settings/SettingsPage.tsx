@@ -2,7 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
-import { Check, Cloud, Download, ExternalLink, Keyboard, KeyRound, Lock, Monitor, Moon, Palette, Pencil, RefreshCw, Sun, Trash, Upload, User, UserPlus, Users, Briefcase, Database } from 'lucide-react'
+import { Check, Cloud, Download, ExternalLink, Keyboard, KeyRound, Lock, Monitor, Moon, Palette, Pencil, RefreshCw, Sun, Trash, Upload, User, UserPlus, Users, Briefcase, Database, GitBranch, Sparkles } from 'lucide-react'
+import { CloudSection } from './CloudSection'
+import { AiSection } from './AiSection'
 import { cn, download, hueColor, modKey } from '@/lib/utils'
 import { timeAgo } from '@/lib/dates'
 import { validateToken } from '@/lib/gist'
@@ -24,7 +26,9 @@ const SECTIONS = [
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'work', label: 'Work week', icon: Briefcase },
   { id: 'people', label: 'People', icon: Users },
-  { id: 'sync', label: 'Sync', icon: Cloud },
+  { id: 'sync', label: 'Cloud', icon: Cloud },
+  { id: 'gist', label: 'Gist backup', icon: GitBranch },
+  { id: 'ai', label: 'AI', icon: Sparkles },
   { id: 'security', label: 'Security', icon: KeyRound },
   { id: 'data', label: 'Data', icon: Database },
   { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard },
@@ -70,12 +74,14 @@ export default function SettingsPage() {
             ))}
           </div>
         </nav>
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Profile />
           <Appearance />
           <WorkWeek />
           <People />
+          <CloudSection />
           <SyncSection />
+          <AiSection />
           <Security />
           <DataSection />
           <Shortcuts />
@@ -326,7 +332,7 @@ function SyncSection() {
   }
 
   return (
-    <Section id="sync" title="Sync" description="Workbench is local-first: everything saves instantly on this device. Connect GitHub to sync across devices through a private gist you own.">
+    <Section id="gist" title="GitHub gist backup" description="A lightweight alternative to Workbench Cloud: sync the workspace through a private gist you own. Files stay on each device. Both can run at once.">
       {sync ? (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-2/40 p-4">

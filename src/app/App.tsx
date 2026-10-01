@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { useAuth } from '@/store/auth'
 import { resolveTheme, usePrefs } from '@/store/prefs'
 import { startSyncEngine } from '@/store/sync'
+import { startCloudEngine } from '@/store/cloud'
 import { requestPersistence } from '@/lib/files'
 import { ConfirmHost } from '@/components/ui/dialog'
 import { LoginScreen } from '@/features/auth/LoginScreen'
@@ -18,7 +19,12 @@ export function App() {
   useEffect(() => {
     if (status !== 'unlocked') return
     void requestPersistence()
-    return startSyncEngine()
+    const stopGist = startSyncEngine()
+    const stopCloud = startCloudEngine()
+    return () => {
+      stopGist()
+      stopCloud()
+    }
   }, [status])
 
   return (
@@ -31,7 +37,9 @@ export function App() {
             key="app"
             className="h-dvh"
             initial={{ opacity: 0, scale: 0.985, filter: 'blur(6px)' }}
-            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+            // Drop filter/transform once settled: either would make this the containing
+            // block for fixed-position descendants and let them widen the document.
+            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)', transitionEnd: { filter: 'none', transform: 'none' } }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
             <RouterProvider router={router} />

@@ -114,6 +114,11 @@
   #root {
     height: 100%;
   }
+  /* App-style layout: the document itself never scrolls (panels do), so focus or
+     scroll-into-view can't shift the whole UI sideways. */
+  body {
+    overflow: clip;
+  }
   body {
     background: var(--bg);
     color: var(--fg);
@@ -457,4 +462,106 @@
 .excalidraw-host .excalidraw.theme--dark {
   --island-bg-color: oklch(0.19 0.009 275);
   --default-bg-color: oklch(0.145 0.006 275);
+}
+
+/* ------------------------------------------------------------------ */
+/*  PDF Studio                                                         */
+/* ------------------------------------------------------------------ */
+
+.pdf-stage {
+  background:
+    radial-gradient(circle at 1px 1px, oklch(0.5 0 0 / 0.14) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--bg);
+}
+
+/* pdf.js text layer (subset of pdf_viewer.css) */
+.textLayer {
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.textLayer .markedContent {
+  display: contents;
+}
+.textLayer span[role='img'] {
+  user-select: none;
+  cursor: default;
+}
+.textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  user-select: none;
+}
+.textLayer.selecting .endOfContent {
+  top: 0;
+}
+.textLayer[data-main-rotation='90'] {
+  transform: rotate(90deg) translateY(-100%);
+}
+.textLayer[data-main-rotation='180'] {
+  transform: rotate(180deg) translate(-100%, -100%);
+}
+.textLayer[data-main-rotation='270'] {
+  transform: rotate(270deg) translateX(-100%);
+}
+.textLayer ::selection,
+.ocrLayer ::selection {
+  background: color-mix(in oklab, var(--accent) 38%, transparent);
+  color: transparent;
+}
+.ocrLayer span {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  line-height: 1;
+  transform-origin: 0 0;
+  cursor: text;
+  font-family: sans-serif;
+}
+.no-text-select,
+.no-text-select * {
+  user-select: none;
+}
+.pdf-shimmer {
+  background: linear-gradient(100deg, oklch(0.97 0 0) 30%, oklch(0.93 0 0) 50%, oklch(0.97 0 0) 70%) 0 0 / 300% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+.pdf-flash {
+  animation: pdf-flash 1.6s ease-out forwards;
+}
+@keyframes pdf-flash {
+  0%, 30% { opacity: 1; }
+  100% { opacity: 0; }
 }

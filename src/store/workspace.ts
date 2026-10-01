@@ -151,9 +151,16 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     toggleSubmitted(weekKey) {
       commit((doc) => {
         const submittedWeeks = { ...doc.submittedWeeks }
-        if (submittedWeeks[weekKey]) delete submittedWeeks[weekKey]
-        else submittedWeeks[weekKey] = nowIso()
-        return { ...doc, submittedWeeks }
+        const tombstones = { ...doc.tombstones }
+        const tid = `week:${weekKey}`
+        if (submittedWeeks[weekKey]) {
+          delete submittedWeeks[weekKey]
+          tombstones[tid] = nowIso()
+        } else {
+          submittedWeeks[weekKey] = nowIso()
+          delete tombstones[tid]
+        }
+        return { ...doc, submittedWeeks, tombstones }
       })
     },
   }

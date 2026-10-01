@@ -18,6 +18,7 @@ import {
 import { cn, download, formatHours, hueColor } from '@/lib/utils'
 import { fromKey, todayKey, toKey, weekDays, weekStart } from '@/lib/dates'
 import { useUI } from '@/store/ui'
+import { codeName, isBillable } from '@/lib/wbs'
 import { useList, useSettings, useTable, useWorkspace, ws } from '@/store/workspace'
 import type { TimeEntry } from '@/store/types'
 import { Page, PageHeader } from '@/components/layout/Page'
@@ -76,12 +77,12 @@ export default function TimesheetPage() {
   }
 
   const exportCsv = () => {
-    const header = ['Date', 'Project number', 'Project', 'Client', 'Cost code', 'Hours', 'Billable', 'Description']
+    const header = ['Date', 'Project number', 'Project', 'Client', 'Task code', 'Task name', 'Hours', 'Billable', 'Description']
     const lines = weekEntries
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((e) => {
         const p = projects[e.projectId]
-        return [e.date, p?.number ?? '', p?.name ?? '', p?.client ?? '', e.costCode, e.hours, e.billable ? 'Y' : 'N', e.description]
+        return [e.date, p?.number ?? '', p?.name ?? '', p?.client ?? '', e.costCode, codeName(p, e.costCode) ?? '', e.hours, e.billable ? 'Y' : 'N', e.description]
       })
     const csv = [header, ...lines].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
     download(`timesheet-${wk}.csv`, csv, 'text/csv')
@@ -200,6 +201,7 @@ export default function TimesheetPage() {
                             <div className="flex items-center gap-2 text-[11.5px] text-subtle">
                               <span className="font-mono">{p?.number}</span>
                               {row.costCode && <Badge className="font-mono">{row.costCode}</Badge>}
+                              {row.costCode && codeName(p, row.costCode) && <span className="truncate">{codeName(p, row.costCode)}</span>}
                             </div>
                           </div>
                         </div>
@@ -343,7 +345,14 @@ function Cell({ entries, row, date, locked, coord }: { entries: TimeEntry[]; row
       toast('Entry removed', { action: { label: 'Undo', onClick: () => ws().restore('entries', removed) } })
     } else if (e) ws().update('entries', e.id, { hours: v })
     else if (v > 0)
-      ws().create('entries', { date, projectId: row.projectId, costCode: row.costCode, hours: v, description: '', billable: ws().doc.settings.defaultBillable })
+      ws().create('entries', {
+        date,
+        projectId: row.projectId,
+        costCode: row.costCode,
+        hours: v,
+        description: '',
+        billable: isBillable(ws().doc.tables.projects[row.projectId], row.costCode, ws().doc.settings.defaultBillable),
+      })
   }
 
   return (
@@ -456,6 +465,7 @@ function EntryList({ entries, locked }: { entries: TimeEntry[]; locked: boolean 
                         <div className="mt-0.5 flex items-center gap-2 text-[11.5px] text-subtle">
                           <span className="truncate">{p?.name}</span>
                           {e.costCode && <span className="font-mono">{e.costCode}</span>}
+                          {e.costCode && codeName(p, e.costCode) && <span className="truncate">{codeName(p, e.costCode)}</span>}
                           {!e.billable && <Badge>Non-billable</Badge>}
                         </div>
                       </div>

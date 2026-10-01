@@ -24,13 +24,23 @@ export type Hue =
 
 export type ProjectStatus = 'active' | 'on-hold' | 'complete'
 
+/** Per-task details for a project's task/cost codes (keyed by code). */
+export interface TaskCodeMeta {
+  name?: string
+  budgetHours?: number
+  billable?: boolean
+  closed?: boolean
+}
+
 export interface Project extends BaseRecord {
   number: string
   name: string
   client: string
   color: Hue
   status: ProjectStatus
+  /** Task / cost codes in display order, e.g. "01.002". Entries reference these by value. */
   costCodes: string[]
+  codeMeta?: Record<string, TaskCodeMeta>
   budgetHours?: number
   description?: string
   location?: string
@@ -154,6 +164,63 @@ export interface FileMeta extends BaseRecord {
   synced?: boolean
 }
 
+/** A page in a PDF Studio document: page `index` (0-based) of the PDF stored as file `src`. */
+export interface PdfPageRef {
+  key: string
+  src: string
+  index: number
+  /** extra clockwise rotation applied in Studio, on top of the page's own /Rotate */
+  rotate: number
+}
+
+export type PdfAnnotKind =
+  | 'ink' | 'highlight' | 'texthl' | 'rect' | 'ellipse' | 'cloud' | 'line' | 'arrow' | 'polygon'
+  | 'text' | 'callout' | 'stamp' | 'image' | 'length' | 'polylength' | 'area' | 'count' | 'redact'
+
+/**
+ * A markup, in PDF user space (points, y up). `pts` is a flat [x, y, x, y, …] list whose
+ * meaning depends on `kind` (two corners for boxes, a path for ink, vertices for measures).
+ */
+export interface PdfAnnot {
+  id: string
+  page: string
+  kind: PdfAnnotKind
+  pts: number[]
+  color: string
+  width: number
+  opacity: number
+  fill?: string
+  text?: string
+  size?: number
+  /** text direction in degrees (counter-clockwise) so it reads upright on a rotated page */
+  angle?: number
+  /** stamp second line, image data URL */
+  sub?: string
+  src?: string
+  author?: string
+  comment?: string
+  status?: 'open' | 'accepted' | 'rejected' | 'done'
+  createdAt: string
+}
+
+export interface PdfCalibration {
+  /** real units per PDF point */
+  factor: number
+  unit: string
+  label: string
+}
+
+export interface PdfDoc extends BaseRecord {
+  fileId: string
+  name: string
+  projectId?: string
+  pages: PdfPageRef[]
+  annots: PdfAnnot[]
+  scale?: PdfCalibration
+  /** per-page scale overrides, keyed by page key */
+  pageScales?: Record<string, PdfCalibration>
+}
+
 export interface Snippet extends BaseRecord {
   title: string
   body: string
@@ -174,6 +241,7 @@ export interface Collections {
   messages: Message
   files: FileMeta
   snippets: Snippet
+  pdfs: PdfDoc
 }
 
 export type CollectionName = keyof Collections
@@ -191,6 +259,7 @@ export const COLLECTIONS: CollectionName[] = [
   'messages',
   'files',
   'snippets',
+  'pdfs',
 ]
 
 export type Tables = { [K in CollectionName]: Record<string, Collections[K]> }
