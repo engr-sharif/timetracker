@@ -22,8 +22,7 @@ import {
   Trash,
   Upload,
   Video,
-  type LucideIcon,
-} from 'lucide-react'
+  type LucideIcon, BookOpenText } from 'lucide-react'
 import { cn, formatBytes } from '@/lib/utils'
 import { timeAgo } from '@/lib/dates'
 import { blobUrl, deleteBlob, fileKind, getBlob, putBlob, storageEstimate, type FileKind } from '@/lib/files'
@@ -35,6 +34,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/field'
 import { Dot, EmptyState, Segmented } from '@/components/ui/misc'
 import { MenuItem, MenuSeparator, Popover } from '@/components/ui/popover'
+import { isReadable } from '@/features/reader/readings'
 import { Dialog } from '@/components/ui/dialog'
 import { ProjectPicker } from '@/components/ui/pickers'
 
@@ -299,6 +299,11 @@ function FileMenu({ f, glass }: { f: FileMeta; glass?: boolean }) {
           <PenTool /> Open in PDF Studio
         </Link>
       )}
+      {isReadable(f) && (
+        <Link to={`/read/${f.id}`} className="flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-fg hover:bg-surface-2 [&_svg]:size-4 [&_svg]:text-muted">
+          <BookOpenText /> Speed read
+        </Link>
+      )}
       <MenuItem icon={<Download />} onSelect={() => void downloadFile(f)}>
         Download
       </MenuItem>
@@ -352,6 +357,11 @@ function Preview({ id, onClose }: { id: string | null; onClose: () => void }) {
           <ProjectPicker value={shown.projectId} onChange={(projectId) => ws().update('files', shown.id, { projectId })} />
           <span className="text-xs text-subtle">{formatBytes(shown.size)}</span>
         </div>
+        {isReadable(shown) && (
+          <Link to={`/read/${shown.id}`} className="inline-flex h-9 items-center gap-2 rounded-[10px] border border-border bg-surface-2 px-3.5 text-sm font-medium text-fg hover:bg-surface-3">
+            <BookOpenText className="size-4" /> Speed read
+          </Link>
+        )}
         {k === 'pdf' ? (
           <>
             <Button icon={<Download className="size-4" />} onClick={() => void downloadFile(shown)}>

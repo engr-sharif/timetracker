@@ -22,8 +22,7 @@ import {
   Undo2,
   ZoomIn,
   ZoomOut,
-  Images,
-} from 'lucide-react'
+  Images, BookOpenText } from 'lucide-react'
 import { cn, download, modKey, uid } from '@/lib/utils'
 import { isTypingTarget } from '@/lib/hotkeys'
 import { useRecord } from '@/store/workspace'
@@ -308,6 +307,9 @@ export function Studio({ fileId }: { fileId: string }) {
           </IconButton>
           <Button size="sm" variant="ghost" icon={<ScanText className="size-4" />} onClick={() => setDialog('ocr')} className="max-md:hidden" disabled={!doc}>
             OCR
+          </Button>
+          <Button size="sm" variant="ghost" icon={<BookOpenText className="size-4" />} onClick={() => navigate(`/read/${fileId}`)} className="max-lg:hidden" title="Read this PDF one word at a time">
+            Speed read
           </Button>
           <Popover
             role="menu"
