@@ -79,7 +79,18 @@ Your workspace lives in each browser and syncs through Workbench Cloud or your G
 - **Link a device (fastest).** On a device that's already signed in, open **Settings → Devices → Show code**. Scan the code with the new device's camera, tap **Sign in**, and choose a password for that device. The code carries your sync settings, so only show it to your own devices. It expires after 10 minutes.
 - **Saved logins.** On the first screen, tap **Already use Workbench? Sign in**. Then either pick your saved GitHub sync login (stored as `github:<username>`; save it once via **Settings → Devices → Save login**) or sign in to Workbench Cloud with email, GitHub, or an email link.
 
-On iPhone, a Workbench icon added to the Home Screen keeps storage separate from Safari, so link that app separately.
+### Install it as an app
+
+- **iPhone or iPad:** in Safari, tap **Share → Add to Home Screen**. Open Workbench from the new icon, then tap **Sign in → Scan code** and scan the code from your computer. The Home Screen app keeps its own storage, so link it from inside the app.
+- **Android, Chrome or Edge:** use **Install app** from the banner on Home, from **Settings → App**, or from the browser menu.
+
+The installed app:
+
+- opens full screen with its own icon and long-press shortcuts (Speed Reader, Timesheet, Tasks, PDF Studio);
+- works offline for screens, PDFs and OCR you've already opened;
+- keeps the screen awake while you read.
+
+On Android and desktop you can also share PDFs, books, documents or articles from other apps straight into Workbench, and open PDF, EPUB, DOCX and Markdown files with it.
 
 ## Gist backup (optional)
 

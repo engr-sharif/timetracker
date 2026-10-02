@@ -98,7 +98,7 @@ export function DevicesSection() {
 
         <div className="flex gap-2 rounded-xl bg-surface-2/50 p-3 text-xs text-subtle">
           <ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
-          On iPhone, a Workbench icon added to the Home Screen keeps its own storage, separate from Safari — open the link from the camera in Safari, or link again from inside the Home Screen app.
+          Using the iPhone Home Screen app? It keeps its own storage, separate from Safari — so open the app, tap Sign in → Scan code, and scan this code from inside it.
         </div>
       </div>
     </section>

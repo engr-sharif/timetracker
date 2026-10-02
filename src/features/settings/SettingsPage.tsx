@@ -2,10 +2,11 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
-import { Check, Cloud, Download, ExternalLink, Keyboard, KeyRound, Lock, Monitor, Moon, Palette, Pencil, RefreshCw, Sun, Trash, Upload, User, UserPlus, Users, Briefcase, Database, GitBranch, Smartphone, Sparkles } from 'lucide-react'
+import { Check, Cloud, Download, ExternalLink, Keyboard, KeyRound, Lock, Monitor, Moon, Palette, Pencil, RefreshCw, Sun, Trash, Upload, User, UserPlus, Users, Briefcase, Database, GitBranch, Smartphone, Sparkles, AppWindow } from 'lucide-react'
 import { CloudSection } from './CloudSection'
 import { AiSection } from './AiSection'
 import { DevicesSection } from './DevicesSection'
+import { AppSection } from '@/components/layout/InstallApp'
 import { gistLoginName, rememberLogin } from '@/lib/link'
 import { cn, download, hueColor, modKey } from '@/lib/utils'
 import { timeAgo } from '@/lib/dates'
@@ -31,6 +32,7 @@ const SECTIONS = [
   { id: 'sync', label: 'Cloud', icon: Cloud },
   { id: 'gist', label: 'Gist backup', icon: GitBranch },
   { id: 'devices', label: 'Devices', icon: Smartphone },
+  { id: 'app', label: 'App', icon: AppWindow },
   { id: 'ai', label: 'AI', icon: Sparkles },
   { id: 'security', label: 'Security', icon: KeyRound },
   { id: 'data', label: 'Data', icon: Database },
@@ -85,6 +87,7 @@ export default function SettingsPage() {
           <CloudSection />
           <SyncSection />
           <DevicesSection />
+          <AppSection />
           <AiSection />
           <Security />
           <DataSection />

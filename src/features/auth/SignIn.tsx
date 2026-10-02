@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Cloud, Mail, QrCode, Smartphone } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Camera, Check, ChevronDown, ClipboardPaste, Cloud, Mail, QrCode, Smartphone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { findGist, readGistDoc, validateToken, type GithubUser } from '@/lib/gist'
-import { clearPendingLink, gistLoginName, pendingLink, rememberLogin, type LinkPayload } from '@/lib/link'
+import { acceptLinkText, clearPendingLink, gistLoginName, pendingLink, rememberLogin, type LinkPayload } from '@/lib/link'
 import { probeCloud, readCloudConfig } from '@/lib/supabase'
 import { migrateV3 } from '@/lib/migrate'
 import { useAuth } from '@/store/auth'
@@ -16,6 +16,7 @@ import { GithubMark } from '@/components/ui/icons'
 import { Field, Input } from '@/components/ui/field'
 import { Avatar, Switch } from '@/components/ui/misc'
 import { AuthCard, AuthLayout } from './AuthLayout'
+import { ScanCode } from './ScanCode'
 
 /**
  * Sign in on a new device: pull an existing workspace (by a link from another device,
@@ -48,7 +49,7 @@ export function SignIn({ onBack }: { onBack: () => void }) {
   const setSync = useAuth((s) => s.setSync)
   const cloudUser = useCloud((s) => s.user)
   const cloudConfigured = useCloud((s) => s.configured)
-  const link = useMemo<LinkPayload | null>(() => pendingLink(), [])
+  const [link, setLink] = useState<LinkPayload | null>(() => pendingLink())
 
   const [found, setFound] = useState<Found>({})
   const [stage, setStage] = useState<'choose' | 'device'>('choose')
@@ -90,7 +91,9 @@ export function SignIn({ onBack }: { onBack: () => void }) {
             >
               {stage === 'choose' ? (
                 <Choose
+                  key={link?.exp ?? 'none'}
                   link={link}
+                  onLink={() => setLink(pendingLink())}
                   cloudConfigured={cloudConfigured}
                   onGist={(g) => {
                     setFound((f) => ({ ...f, gist: g }))
@@ -138,7 +141,18 @@ export function SignIn({ onBack }: { onBack: () => void }) {
 /*  Step 1: find the workspace                                         */
 /* ------------------------------------------------------------------ */
 
-function Choose({ link, cloudConfigured, onGist, onBack }: { link: LinkPayload | null; cloudConfigured: boolean; onGist: (g: NonNullable<Found['gist']>) => void; onBack: () => void }) {
+function Choose({ link, onLink, cloudConfigured, onGist, onBack }: { link: LinkPayload | null; onLink: () => void; cloudConfigured: boolean; onGist: (g: NonNullable<Found['gist']>) => void; onBack: () => void }) {
+  const [scan, setScan] = useState(false)
+  const [paste, setPaste] = useState<string | null>(null)
+  const [linkError, setLinkError] = useState('')
+  const applyLink = (text: string) => {
+    const r = acceptLinkText(text)
+    if (r === 'ok') {
+      setLinkError('')
+      setScan(false)
+      onLink()
+    } else setLinkError(r === 'expired' ? 'That code has expired — tap New code on your computer.' : 'That isn’t a Workbench device link.')
+  }
   const [username, setUsername] = useState(link?.gist ? gistLoginName(link.gist.login) : '')
   const [token, setToken] = useState(link?.gist?.token ?? '')
   const [busy, setBusy] = useState(false)
@@ -185,14 +199,42 @@ function Choose({ link, cloudConfigured, onGist, onBack }: { link: LinkPayload |
       )}
 
       {!link && (
-        <div className="flex gap-3 rounded-2xl border border-border bg-surface-2/40 p-3.5 text-[13px]">
-          <QrCode className="mt-0.5 size-5 shrink-0 text-accent-strong" />
-          <div>
-            <div className="font-medium">Fastest: scan from your computer</div>
-            <div className="mt-0.5 text-xs leading-relaxed text-subtle">
-              On a device that’s already signed in, open <b>Settings → Devices → Link a device</b> and point this phone’s camera at the code.
+        <div className="space-y-2.5 rounded-2xl border border-border bg-surface-2/40 p-3.5 text-[13px]">
+          <div className="flex gap-3">
+            <QrCode className="mt-0.5 size-5 shrink-0 text-accent-strong" />
+            <div>
+              <div className="font-medium">Fastest: scan from your computer</div>
+              <div className="mt-0.5 text-xs leading-relaxed text-subtle">
+                On a device that’s already signed in, open <b>Settings → Devices → Show code</b>, then scan it here.
+              </div>
             </div>
           </div>
+          {scan ? (
+            <ScanCode onResult={applyLink} onClose={() => setScan(false)} />
+          ) : paste !== null ? (
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                applyLink(paste)
+              }}
+            >
+              <Input autoFocus value={paste} onChange={(e) => setPaste(e.target.value)} placeholder="Paste the device link" className="flex-1" aria-label="Device link" />
+              <Button type="submit" disabled={!paste.trim()}>
+                Use
+              </Button>
+            </form>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="primary" icon={<Camera className="size-4" />} onClick={() => setScan(true)} disabled={!navigator.mediaDevices?.getUserMedia} data-testid="scan-button">
+                Scan code
+              </Button>
+              <Button type="button" icon={<ClipboardPaste className="size-4" />} onClick={() => setPaste('')}>
+                Paste link
+              </Button>
+            </div>
+          )}
+          {linkError && <p className="text-xs text-danger">{linkError}</p>}
         </div>
       )}
 

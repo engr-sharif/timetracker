@@ -5,10 +5,13 @@ import { Logo } from '@/components/layout/Logo'
 /** Full-bleed backdrop for the sign-in and onboarding screens. */
 export function AuthLayout({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
-    <div className="grain relative flex min-h-dvh overflow-clip">
+    // The page itself never scrolls (see main.tsx), so this screen scrolls inside its own box
+    // when the card is taller than a phone screen.
+    <div className="h-dvh overflow-x-clip overflow-y-auto overscroll-contain">
+    <div className="grain relative flex min-h-full overflow-clip">
       <div className="aurora" aria-hidden />
       <GridBackdrop />
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center p-5">
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center p-5 pt-20 pb-[max(20px,env(safe-area-inset-bottom))] sm:pt-5">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -21,6 +24,7 @@ export function AuthLayout({ children, aside }: { children: ReactNode; aside?: R
         {children}
         {aside}
       </div>
+    </div>
     </div>
   )
 }

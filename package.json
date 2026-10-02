@@ -31,6 +31,7 @@
     "date-fns": "^4.4.0",
     "fflate": "^0.8.3",
     "idb-keyval": "^6.3.0",
+    "jsqr": "^1.4.0",
     "lucide-react": "^1.48.0",
     "motion": "^13.4.4",
     "pdf-lib": "^1.17.1",
