@@ -3,7 +3,6 @@
   "name": "Workbench",
   "short_name": "Workbench",
   "description": "Projects, timesheets, tasks, notes, whiteboards, PDFs and a speed reader.",
-  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

@@ -32,6 +32,8 @@ export function App() {
   }, [status])
 
   useEffect(() => {
+    // An installed iPhone app may relaunch from an old hand-off address; only a new device cares.
+    if (useAuth.getState().status !== 'setup') return
     if (linkCaptureResult === 'expired') toast.error('That device link has expired', { description: 'Make a new one in Settings → Devices on your other device.' })
     if (linkCaptureResult === 'invalid') toast.error('That device link is damaged', { description: 'Make a new one in Settings → Devices on your other device.' })
   }, [])
@@ -45,10 +47,7 @@ export function App() {
     const auth = useAuth.getState()
     const addGist = p.gist && !auth.sync
     const addCloud = p.cloud && !readCloudConfig()
-    if (!addGist && !addCloud) {
-      toast('This device is already linked')
-      return
-    }
+    if (!addGist && !addCloud) return
     toast('Link this device?', {
       description: [addGist && `GitHub sync (${p.gist!.login ?? 'gist'})`, addCloud && 'Workbench Cloud'].filter(Boolean).join(' and '),
       duration: 30_000,
