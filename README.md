@@ -81,7 +81,7 @@ Your workspace lives in each browser and syncs through Workbench Cloud or your G
 
 ### Install it as an app
 
-- **iPhone or iPad:** in Safari, tap **Share → Add to Home Screen**. Open Workbench from the new icon, then tap **Sign in → Scan code** and scan the code from your computer. The Home Screen app keeps its own storage, so link it from inside the app.
+- **iPhone or iPad:** the Home Screen app keeps its own storage, separate from Safari. If you're signed in to Safari, tap **Get app ready** (on the Home banner or in **Settings → App**), then **Share → Add to Home Screen**. The new app opens with your sign-in carried over, and you just pick a device password. Otherwise, open the app and use **Sign in → Scan code** with the code from your computer.
 - **Android, Chrome or Edge:** use **Install app** from the banner on Home, from **Settings → App**, or from the browser menu.
 
 The installed app:

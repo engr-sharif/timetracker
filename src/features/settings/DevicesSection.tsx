@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Copy, Eye, KeyRound, QrCode, RefreshCw, ShieldAlert, Smartphone } from 'lucide-react'
 import { copyText } from '@/lib/utils'
-import { gistLoginName, LINK_TTL_MIN, makeLinkUrl, rememberLogin } from '@/lib/link'
-import { readCloudConfig } from '@/lib/supabase'
+import { deviceLinkUrl, gistLoginName, LINK_TTL_MIN, rememberLogin } from '@/lib/link'
 import { useAuth } from '@/store/auth'
 import { useCloud } from '@/store/cloud'
 import { Button } from '@/components/ui/button'
@@ -12,7 +11,6 @@ import { Input } from '@/components/ui/field'
 /** Settings → Devices: link a phone by QR code, and keep the sync key in the password manager. */
 export function DevicesSection() {
   const sync = useAuth((s) => s.sync)
-  const account = useAuth((s) => s.account)
   const cloudConfigured = useCloud((s) => s.configured)
   const [shown, setShown] = useState<{ url: string; svg: string; until: number } | null>(null)
   const [now, setNow] = useState(Date.now())
@@ -28,12 +26,8 @@ export function DevicesSection() {
   }, [now, shown])
 
   const show = async () => {
-    const cloud = readCloudConfig()
-    const url = makeLinkUrl({
-      gist: sync?.token ? { token: sync.token, login: sync.login, avatar: sync.avatar, gistId: sync.gistId } : undefined,
-      cloud: cloud ?? undefined,
-      profile: account ? { name: account.name, title: account.title, company: account.company, color: account.color } : undefined,
-    })
+    const url = deviceLinkUrl()
+    if (!url) return
     const { renderSVG } = await import('uqr')
     const svg = renderSVG(url, { ecc: 'M', border: 2, whiteColor: '#ffffff', blackColor: '#0b0c10' })
     setShown({ url, svg, until: Date.now() + LINK_TTL_MIN * 60_000 })

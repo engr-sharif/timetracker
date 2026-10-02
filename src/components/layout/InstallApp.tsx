@@ -4,25 +4,64 @@ import { CheckCircle2, Download, Share, SquarePlus, X } from 'lucide-react'
 import { isIOS, isMobile, isStandalone, usePwa } from '@/lib/pwa'
 import { storageEstimate } from '@/lib/files'
 import { formatBytes } from '@/lib/utils'
+import { deviceLinkUrl, INSTALL_HANDOFF_MIN } from '@/lib/link'
+import { readCloudConfig } from '@/lib/supabase'
+import { useAuth } from '@/store/auth'
 import { Button } from '@/components/ui/button'
 
 const DISMISS = 'wb.installDismissed'
 
-/** iOS has no install prompt: show exactly where the buttons are. */
+const Num = ({ n }: { n: number }) => <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-strong">{n}</span>
+
+/**
+ * iOS has no install prompt, and a Home Screen app gets storage separate from Safari.
+ * When this browser is already signed in, "Get app ready" puts a short-lived sign-in
+ * hand-off into the page address; iOS saves that address with the icon, so the new app
+ * opens already linked.
+ */
 export function IosInstallSteps({ compact }: { compact?: boolean }) {
+  const signedIn = useAuth((s) => s.status === 'unlocked')
+  const hasGist = useAuth((s) => !!s.sync?.token)
+  const canHandoff = signedIn && (hasGist || !!readCloudConfig())
+  const [ready, setReady] = useState(false)
+  const prepare = () => {
+    const url = deviceLinkUrl(INSTALL_HANDOFF_MIN)
+    if (!url) return
+    history.replaceState(history.state, '', url)
+    setReady(true)
+  }
+  let n = 0
   return (
-    <ol className={compact ? 'space-y-1.5 text-[12.5px]' : 'space-y-2 text-[13px]'}>
+    <ol className={compact ? 'space-y-1.5 text-[12.5px]' : 'space-y-2 text-[13px]'} data-testid="ios-steps">
+      {canHandoff && (
+        <li className="flex items-center gap-2">
+          <Num n={++n} />
+          {ready ? (
+            <span className="flex items-center gap-1.5 text-success" data-testid="handoff-ready">
+              <CheckCircle2 className="size-4" /> Ready — your sign-in will carry over for {INSTALL_HANDOFF_MIN} min
+            </span>
+          ) : (
+            <button onClick={prepare} className="rounded-lg bg-accent px-2.5 py-1 text-[12.5px] font-medium text-accent-fg" data-testid="handoff">
+              Get app ready
+            </button>
+          )}
+        </li>
+      )}
       <li className="flex items-center gap-2">
-        <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-strong">1</span>
-        In Safari, tap <Share className="inline size-4 text-accent-strong" aria-label="Share" /> <b>Share</b>
+        <Num n={++n} />
+        <span>
+          {canHandoff ? 'Then tap' : 'In Safari, tap'} <Share className="inline size-4 text-accent-strong" aria-label="Share" /> <b>Share</b>
+        </span>
       </li>
       <li className="flex items-center gap-2">
-        <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-strong">2</span>
-        Choose <SquarePlus className="inline size-4 text-accent-strong" aria-label="Add" /> <b>Add to Home Screen</b>
+        <Num n={++n} />
+        <span>
+          Choose <SquarePlus className="inline size-4 text-accent-strong" aria-label="Add" /> <b>Add to Home Screen</b>
+        </span>
       </li>
       <li className="flex items-center gap-2">
-        <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-strong">3</span>
-        Open Workbench from the Home Screen and sign in (Scan code is quickest)
+        <Num n={++n} />
+        {canHandoff ? 'Open it from the Home Screen and tap Sign in — then pick a device password' : 'Open Workbench from the Home Screen and sign in (Scan code is quickest)'}
       </li>
     </ol>
   )

@@ -1,5 +1,6 @@
 import type { Hue } from '@/store/types'
-import type { CloudConfig } from './supabase'
+import { readCloudConfig, type CloudConfig } from './supabase'
+import { useAuth } from '@/store/auth'
 
 /**
  * "Link a device": a signed-in device shows a QR code / link that carries its sync
@@ -24,8 +25,8 @@ export const LINK_TTL_MIN = 10
 const b64url = (s: string) => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 const unb64url = (s: string) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)))
 
-export function makeLinkUrl(p: Omit<LinkPayload, 'v' | 'exp'>) {
-  const payload: LinkPayload = { v: 1, exp: Date.now() + LINK_TTL_MIN * 60_000, ...p }
+export function makeLinkUrl(p: Omit<LinkPayload, 'v' | 'exp'>, ttlMin = LINK_TTL_MIN) {
+  const payload: LinkPayload = { v: 1, exp: Date.now() + ttlMin * 60_000, ...p }
   return `${location.origin}${location.pathname}${PREFIX}${b64url(JSON.stringify(payload))}`
 }
 
@@ -81,6 +82,24 @@ export let linkCaptureResult: ReturnType<typeof captureLinkFromUrl> = 'none'
 export function initLinkCapture() {
   linkCaptureResult = captureLinkFromUrl()
 }
+
+/** A link carrying this device's sync settings and profile (null when nothing is set up to share). */
+export function deviceLinkUrl(ttlMin = LINK_TTL_MIN) {
+  const { sync, account } = useAuth.getState()
+  const cloud = readCloudConfig()
+  if (!sync?.token && !cloud) return null
+  return makeLinkUrl(
+    {
+      gist: sync?.token ? { token: sync.token, login: sync.login, avatar: sync.avatar, gistId: sync.gistId } : undefined,
+      cloud: cloud ?? undefined,
+      profile: account ? { name: account.name, title: account.title, company: account.company, color: account.color } : undefined,
+    },
+    ttlMin,
+  )
+}
+
+/** The address a Home Screen app is saved with (iOS keeps the page's URL when there's no start_url). */
+export const INSTALL_HANDOFF_MIN = 30
 
 /* ------------------------------------------------------------------ */
 /*  Saved logins                                                       */
