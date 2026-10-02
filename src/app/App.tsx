@@ -11,6 +11,10 @@ import { ConfirmHost } from '@/components/ui/dialog'
 import { LoginScreen } from '@/features/auth/LoginScreen'
 import { Onboarding } from '@/features/auth/Onboarding'
 import { router } from './router'
+import { toast } from 'sonner'
+import { clearPendingLink, linkCaptureResult, pendingLink } from '@/lib/link'
+import { useCloud } from '@/store/cloud'
+import { readCloudConfig } from '@/lib/supabase'
 
 export function App() {
   const status = useAuth((s) => s.status)
@@ -25,6 +29,38 @@ export function App() {
       stopGist()
       stopCloud()
     }
+  }, [status])
+
+  useEffect(() => {
+    if (linkCaptureResult === 'expired') toast.error('That device link has expired', { description: 'Make a new one in Settings → Devices on your other device.' })
+    if (linkCaptureResult === 'invalid') toast.error('That device link is damaged', { description: 'Make a new one in Settings → Devices on your other device.' })
+  }, [])
+
+  // A link opened on a device that's already set up: offer to add the missing sync.
+  useEffect(() => {
+    if (status !== 'unlocked') return
+    const p = pendingLink()
+    if (!p) return
+    clearPendingLink()
+    const auth = useAuth.getState()
+    const addGist = p.gist && !auth.sync
+    const addCloud = p.cloud && !readCloudConfig()
+    if (!addGist && !addCloud) {
+      toast('This device is already linked')
+      return
+    }
+    toast('Link this device?', {
+      description: [addGist && `GitHub sync (${p.gist!.login ?? 'gist'})`, addCloud && 'Workbench Cloud'].filter(Boolean).join(' and '),
+      duration: 30_000,
+      action: {
+        label: 'Link',
+        onClick: () => {
+          if (addGist) auth.setSync({ token: p.gist!.token, login: p.gist!.login, avatar: p.gist!.avatar, gistId: p.gist!.gistId })
+          if (addCloud) useCloud.getState().connect(p.cloud!)
+          toast.success(addCloud ? 'Linked — sign in to Cloud in Settings to finish' : 'Linked — syncing now')
+        },
+      },
+    })
   }, [status])
 
   return (

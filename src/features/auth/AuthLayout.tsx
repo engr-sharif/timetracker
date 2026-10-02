@@ -5,10 +5,10 @@ import { Logo } from '@/components/layout/Logo'
 /** Full-bleed backdrop for the sign-in and onboarding screens. */
 export function AuthLayout({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
-    <div className="grain relative flex min-h-dvh overflow-hidden">
+    <div className="grain relative flex min-h-dvh overflow-clip">
       <div className="aurora" aria-hidden />
       <GridBackdrop />
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-5">
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center p-5">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -54,7 +54,7 @@ export function AuthCard({ children }: { children: ReactNode }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 1.04, filter: 'blur(8px)', transition: { duration: 0.35 } }}
       transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-      className="glass relative w-full max-w-[420px] overflow-hidden rounded-3xl p-7 shadow-float sm:p-8"
+      className="glass relative w-full max-w-[420px] overflow-clip rounded-3xl p-7 shadow-float sm:p-8"
     >
       <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
       {children}
