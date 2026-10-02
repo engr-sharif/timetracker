@@ -2,9 +2,11 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
-import { Check, Cloud, Download, ExternalLink, Keyboard, KeyRound, Lock, Monitor, Moon, Palette, Pencil, RefreshCw, Sun, Trash, Upload, User, UserPlus, Users, Briefcase, Database, GitBranch, Sparkles } from 'lucide-react'
+import { Check, Cloud, Download, ExternalLink, Keyboard, KeyRound, Lock, Monitor, Moon, Palette, Pencil, RefreshCw, Sun, Trash, Upload, User, UserPlus, Users, Briefcase, Database, GitBranch, Smartphone, Sparkles } from 'lucide-react'
 import { CloudSection } from './CloudSection'
 import { AiSection } from './AiSection'
+import { DevicesSection } from './DevicesSection'
+import { gistLoginName, rememberLogin } from '@/lib/link'
 import { cn, download, hueColor, modKey } from '@/lib/utils'
 import { timeAgo } from '@/lib/dates'
 import { validateToken } from '@/lib/gist'
@@ -28,6 +30,7 @@ const SECTIONS = [
   { id: 'people', label: 'People', icon: Users },
   { id: 'sync', label: 'Cloud', icon: Cloud },
   { id: 'gist', label: 'Gist backup', icon: GitBranch },
+  { id: 'devices', label: 'Devices', icon: Smartphone },
   { id: 'ai', label: 'AI', icon: Sparkles },
   { id: 'security', label: 'Security', icon: KeyRound },
   { id: 'data', label: 'Data', icon: Database },
@@ -81,6 +84,7 @@ export default function SettingsPage() {
           <People />
           <CloudSection />
           <SyncSection />
+          <DevicesSection />
           <AiSection />
           <Security />
           <DataSection />
@@ -323,6 +327,7 @@ function SyncSection() {
     try {
       const user = await validateToken(token.trim())
       setSync({ token: token.trim(), login: user.login, avatar: user.avatar_url })
+      void rememberLogin(gistLoginName(user.login), token.trim(), `Workbench sync (${user.login})`, user.avatar_url)
       setToken('')
       toast.success(`Connected to GitHub as ${user.login}`)
     } catch (e) {
@@ -365,12 +370,19 @@ function SyncSection() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="flex gap-2">
-            <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="GitHub token with gist scope" className="flex-1 font-mono" />
-            <Button variant="primary" onClick={connect} loading={busy} disabled={!token.trim()}>
+          {/* A login form, so password managers can fill a saved sync key (and offer to save a new one). */}
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void connect()
+            }}
+          >
+            <Input name="password" type="password" autoComplete="current-password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="GitHub token with gist scope" className="flex-1 font-mono" />
+            <Button type="submit" variant="primary" loading={busy} disabled={!token.trim()}>
               Connect
             </Button>
-          </div>
+          </form>
           <a href="https://github.com/settings/tokens/new?scopes=gist&description=Workbench%20sync" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-accent-strong hover:underline">
             Create a token (gist scope only) <ExternalLink className="size-3" />
           </a>

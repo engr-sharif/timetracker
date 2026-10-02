@@ -72,6 +72,15 @@ Live sync across devices, real sign-in, and files that follow you. It takes abou
 
 For email links and GitHub sign-in, add your site URL (for example `https://you.github.io/timetracker/`) under *Authentication → URL Configuration → Redirect URLs*.
 
+## Using Workbench on another device
+
+Your workspace lives in each browser and syncs through Workbench Cloud or your GitHub gist. To add a phone or another computer:
+
+- **Link a device (fastest).** On a device that's already signed in, open **Settings → Devices → Show code**. Scan the code with the new device's camera, tap **Sign in**, and choose a password for that device. The code carries your sync settings, so only show it to your own devices. It expires after 10 minutes.
+- **Saved logins.** On the first screen, tap **Already use Workbench? Sign in**. Then either pick your saved GitHub sync login (stored as `github:<username>`; save it once via **Settings → Devices → Save login**) or sign in to Workbench Cloud with email, GitHub, or an email link.
+
+On iPhone, a Workbench icon added to the Home Screen keeps storage separate from Safari, so link that app separately.
+
 ## Gist backup (optional)
 
 1. [Create a GitHub token](https://github.com/settings/tokens/new?scopes=gist&description=Workbench%20sync) with **only** the `gist` scope.

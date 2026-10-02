@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowLeft, ArrowRight, Check, Cloud, ExternalLink, HardDrive, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Cloud, ExternalLink, HardDrive, LogIn, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { validateToken, type GithubUser } from '@/lib/gist'
 import { useAuth } from '@/store/auth'
@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { Avatar, HuePicker, Switch } from '@/components/ui/misc'
 import { AuthCard, AuthLayout } from './AuthLayout'
+import { SignIn, signInPending } from './SignIn'
+import { gistLoginName, rememberLogin } from '@/lib/link'
+import { useCloud } from '@/store/cloud'
 
 const TOKEN_URL = 'https://github.com/settings/tokens/new?scopes=gist&description=Workbench%20sync'
 
@@ -24,6 +27,13 @@ function strength(pw: string) {
 }
 
 export function Onboarding() {
+  // Returning from a Cloud sign-in redirect, or opened from a device link, lands on Sign in.
+  const [mode, setMode] = useState<'setup' | 'signin'>(() => (signInPending() || useCloud.getState().user ? 'signin' : 'setup'))
+  if (mode === 'signin') return <SignIn onBack={() => setMode('setup')} />
+  return <Setup onSignIn={() => setMode('signin')} />
+}
+
+function Setup({ onSignIn }: { onSignIn: () => void }) {
   const createAccount = useAuth((s) => s.createAccount)
   const setSync = useAuth((s) => s.setSync)
   const [step, setStep] = useState(0)
@@ -64,7 +74,10 @@ export function Onboarding() {
 
   const finish = async () => {
     setBusy(true)
-    if (gh && token) setSync({ token: token.trim(), login: gh.login, avatar: gh.avatar_url })
+    if (gh && token) {
+      setSync({ token: token.trim(), login: gh.login, avatar: gh.avatar_url })
+      void rememberLogin(gistLoginName(gh.login), token.trim(), `Workbench sync (${gh.login})`, gh.avatar_url)
+    }
     if (sample) seedSample()
     else seedStarter()
     await createAccount({ name: name.trim(), title: title.trim(), company: company.trim(), color, password, remember })
@@ -109,6 +122,18 @@ export function Onboarding() {
                     </h1>
                     <p className="mt-2 text-sm text-muted">Projects, hours, tasks, notes and sketches — together. Let’s set you up.</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={onSignIn}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-accent/40 bg-accent-soft/60 p-3 text-left transition-colors hover:bg-accent-soft"
+                    data-testid="signin-entry"
+                  >
+                    <LogIn className="size-4 shrink-0 text-accent-strong" />
+                    <span className="flex-1 text-[13px]">
+                      <span className="font-semibold">Already use Workbench?</span> <span className="text-muted">Sign in to bring your workspace here.</span>
+                    </span>
+                    <ArrowRight className="size-4 text-accent-strong" />
+                  </button>
                   <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface-2/50 p-3">
                     <Avatar name={name || '?'} hue={color} size={44} />
                     <div className="min-w-0 flex-1">
