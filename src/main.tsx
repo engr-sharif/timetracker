@@ -5,12 +5,14 @@ import { useWorkspace } from '@/store/workspace'
 import { App } from '@/app/App'
 import { initCloudAuth } from '@/store/cloud'
 import { initLinkCapture } from '@/lib/link'
+import { initPwa } from '@/lib/pwa'
 
 // Whiteboard fonts are self-hosted next to the app (see vite.config.ts).
 ;(window as unknown as { EXCALIDRAW_ASSET_PATH: string }).EXCALIDRAW_ASSET_PATH = new URL('./excalidraw/', location.href).href
 
 // A device link (#/link/…) is read and stripped from the address bar before anything else.
 initLinkCapture()
+initPwa()
 
 // Finish any Supabase email-link / OAuth sign-in in the URL as early as possible.
 void initCloudAuth()
@@ -31,9 +33,3 @@ useWorkspace
       </StrictMode>,
     )
   })
-
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {})
-  })
-}

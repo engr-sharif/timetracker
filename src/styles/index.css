@@ -565,3 +565,38 @@
   0%, 30% { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Touch devices & the installed app                                  */
+/* ------------------------------------------------------------------ */
+
+/* Unlayered on purpose so it wins over utility font sizes: iOS zooms the page when a
+   field under 16px is focused, which shifts the whole app. */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+button,
+a,
+[role='button'] {
+  touch-action: manipulation;
+}
+
+/* Installed app: no long-press callouts on controls, like a native app. */
+@media (display-mode: standalone) {
+  button,
+  a,
+  img {
+    -webkit-touch-callout: none;
+  }
+}

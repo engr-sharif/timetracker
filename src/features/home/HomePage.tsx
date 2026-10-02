@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { InstallBanner } from '@/components/layout/InstallApp'
 import { Link, useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { format, isSameDay } from 'date-fns'
@@ -38,6 +39,7 @@ export function HomePage() {
 
   return (
     <Page wide>
+      <InstallBanner />
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
           <p className="text-[13px] font-medium text-subtle">{format(new Date(), 'EEEE, MMMM d')}</p>

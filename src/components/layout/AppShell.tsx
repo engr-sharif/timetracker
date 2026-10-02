@@ -104,7 +104,7 @@ function MobileTopBar() {
   const openPalette = useUI((s) => s.openPalette)
   const setMobileNav = useUI((s) => s.setMobileNav)
   return (
-    <div className="flex h-14 items-center gap-2 border-b border-border bg-bg-elev/80 px-3 backdrop-blur-xl md:hidden">
+    <div className="box-content flex h-14 items-center gap-2 border-b border-border bg-bg-elev/80 pt-[env(safe-area-inset-top)] pr-[max(12px,env(safe-area-inset-right))] pl-[max(12px,env(safe-area-inset-left))] backdrop-blur-xl md:hidden">
       <button onClick={() => setMobileNav(true)} className="grid size-9 place-items-center rounded-lg text-muted hover:bg-surface-2" aria-label="Menu">
         <Menu className="size-5" />
       </button>

@@ -55,6 +55,17 @@ export function captureLinkFromUrl(): 'none' | 'ok' | 'expired' | 'invalid' {
   return 'ok'
 }
 
+/** Accepts a link pasted or scanned inside the app (e.g. the iPhone Home Screen app). */
+export function acceptLinkText(text: string): 'ok' | 'expired' | 'invalid' {
+  const i = text.indexOf(PREFIX)
+  if (i < 0) return 'invalid'
+  const p = parse(text.slice(i + PREFIX.length).trim().split(/\s/)[0])
+  if (!p) return 'invalid'
+  if (p.exp < Date.now()) return 'expired'
+  sessionStorage.setItem(PENDING, JSON.stringify(p))
+  return 'ok'
+}
+
 export function pendingLink(): LinkPayload | null {
   try {
     const p = JSON.parse(sessionStorage.getItem(PENDING) ?? 'null') as LinkPayload | null
